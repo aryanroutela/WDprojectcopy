@@ -21,7 +21,7 @@ const Contact = () => {
       setForm({ name: "", email: "", subject: "", message: "" });
       setSubmitted(false);
     }, 2000);
-  };
+  }; 
 
   return (
     <div style={styles.page}>
