@@ -109,13 +109,16 @@ const Contact = () => {
               <h2 style={styles.infoTitle}>Contact Information</h2>
 
               <ContactInfoCard
-                icon="📧"
-                title="Email"
-              value="support@routeflow.com"
-                icon="📞"
-                title="Phone"
-                value="+1 (555) 123-4567"
-              />
+  icon="📧"
+  title="Email"
+  value="support@routeflow.com"
+/>
+
+<ContactInfoCard
+  icon="📞"
+  title="Phone"
+  value="+1 (555) 123-4567"
+/>
 
               <ContactInfoCard
                 icon="📍"
