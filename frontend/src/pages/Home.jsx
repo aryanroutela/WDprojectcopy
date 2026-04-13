@@ -1,51 +1,42 @@
 import React, { useState, useEffect } from "react";
+import io from "socket.io-client";
 
 const Home = () => {
-  const [buses, setBuses] = useState([
-    {
-      id: "bus1",
-      route: "Express Route 5",
-      destination: "Central Station",
-      eta: 5,
-      status: "green",
-      occupancy: 45,
-      nextStop: "Market Street",
-      distance: 2.3,
-    },
-    {
-      id: "bus2",
-      route: "Metro Route 8",
-      destination: "Airport Terminal",
-      eta: 10,
-      status: "yellow",
-      occupancy: 78,
-      nextStop: "Commerce Hub",
-      distance: 5.1,
-    },
-    {
-      id: "bus3",
-      route: "Local Route 12",
-      destination: "University",
-      eta: 15,
-      status: "red",
-      occupancy: 95,
-      nextStop: "Library Junction",
-      distance: 7.8,
-    },
-    {
-      id: "bus4",
-      route: "Premium Route 3",
-      destination: "Tech Park",
-      eta: 8,
-      status: "green",
-      occupancy: 32,
-      nextStop: "Innovation Hub",
-      distance: 3.5,
-    },
-  ]);
-
+  const [buses, setBuses] = useState([]);
   const [selectedBus, setSelectedBus] = useState(null);
   const [activeStatus, setActiveStatus] = useState(null);
+
+  // Socket.io connection and API initialization
+  useEffect(() => {
+    // Fetch buses from API
+    fetch("http://localhost:5000/api/buses")
+      .then((res) => res.json())
+      .then((data) => setBuses(data))
+      .catch((error) => console.error("Error fetching buses:", error));
+
+    // Initialize Socket.io
+    const socket = io("http://localhost:5000");
+
+    socket.on("bus:update", (data) => {
+      setBuses(data);
+    });
+
+    // Geolocation - Send live location updates
+    if (navigator.geolocation) {
+      const watchId = navigator.geolocation.watchPosition((pos) => {
+        socket.emit("location:update", {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          timestamp: new Date().toISOString(),
+        });
+      });
+
+      return () => {
+        navigator.geolocation.clearWatch(watchId);
+        socket.disconnect();
+      };
+    }
+  }, []);
 
   const getStatusColor = (status) => {
     if (status === "green") return "#10b981";
@@ -66,11 +57,37 @@ const Home = () => {
   };
 
   const updateStatus = (busId, newStatus) => {
-    setBuses((prev) =>
-      prev.map((bus) =>
-        bus.id === busId ? { ...bus, status: newStatus } : bus
-      )
-    );
+    // Map status to API format
+    const statusMap = {
+      "green": "vacant",
+      "yellow": "available",
+      "red": "full"
+    };
+
+    fetch("http://localhost:5000/api/seats/report", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${localStorage.getItem('token')}`,
+      },
+      body: JSON.stringify({
+        busId,
+        status: statusMap[newStatus] || newStatus,
+      }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          setBuses((prev) =>
+            prev.map((bus) =>
+              bus.id === busId ? { ...bus, status: newStatus } : bus
+            )
+          );
+        } else {
+          console.error("Failed to update status:", data.message);
+        }
+      })
+      .catch((error) => console.error("Error updating status:", error));
   };
 
   return (
