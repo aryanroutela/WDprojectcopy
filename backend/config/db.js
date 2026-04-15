@@ -1,13 +1,16 @@
 const mongoose = require("mongoose");
 
-const MONGODB_URI = "mongodb://localhost:27017";
-
 const connectDB = async () => {
   try {
-    await mongoose.connect(MONGODB_URI);
-    console.log("MongoDB connected");
+    const conn = await mongoose.connect(process.env.MONGODB_URI, {
+      dbName: process.env.DB_NAME,
+      serverSelectionTimeoutMS: 5000,
+    });
+
+    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+    return conn;
   } catch (err) {
-    console.log("MongoDB error:", err);
+    console.error("❌ MongoDB Connection Error:", err.message);
     process.exit(1);
   }
 };

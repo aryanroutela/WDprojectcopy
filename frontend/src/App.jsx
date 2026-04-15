@@ -3,17 +3,20 @@ import Home from "./pages/Home";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
 import Navbar from "./components/Navbar";
-
+import JoinBeta from "./pages/JoinBeta";
+import { ToastContainer } from "react-toastify";
 function App() {
   return (
-    <Router>
+    <BrowserRouter>
       <Navbar />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
+        <Route path="/join-beta" element={<JoinBeta />} />
       </Routes>
-    </Router>
+      < ToastContainer />
+    </BrowserRouter>
   );    
 }
 
