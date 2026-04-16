@@ -45,7 +45,7 @@ function App() {
           element={isAuthenticated ? <Navigate to="/" replace /> : <Signup />}
         />
 
-        {/* Public Routes with Navbar Layout */}
+        {/* Public Routes with Navbar layout */}
         <Route element={<PublicLayout />}>
           <Route path="/" element={<Home />} />
           <Route path="/about" element={<About />} />
