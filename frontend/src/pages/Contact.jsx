@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import axios from "axios";
+import { toast } from "react-toastify";
 
 const Contact = () => {
   const [form, setForm] = useState({
@@ -9,18 +11,43 @@ const Contact = () => {
   });
 
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setSubmitted(true);
-    setTimeout(() => {
+
+    if (!form.name || !form.email || !form.subject || !form.message) {
+      toast.error("Please fill all fields");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      await axios.post(
+        `${import.meta.env.VITE_BACKEND_URL}/api/contact`,
+        form
+      );
+
+      toast.success("Message sent! We'll get back to you soon 📧");
+      setSubmitted(true);
       setForm({ name: "", email: "", subject: "", message: "" });
-      setSubmitted(false);
-    }, 2000);
+
+      setTimeout(() => {
+        setSubmitted(false);
+      }, 2000);
+
+    } catch (err) {
+      toast.error(
+        err.response?.data?.message || "Failed to send message"
+      );
+    } finally {
+      setLoading(false);
+    }
   }; 
 
   return (

@@ -9,13 +9,19 @@ const Home = () => {
   // Socket.io connection and API initialization
   useEffect(() => {
     // Fetch buses from API
-    fetch("http://localhost:5000/api/buses")
+    fetch(`${import.meta.env.VITE_BACKEND_URL}/api/buses`)
       .then((res) => res.json())
-      .then((data) => setBuses(data))
+      .then((data) => {
+        if (data.success && Array.isArray(data.buses)) {
+          setBuses(data.buses);
+        } else {
+          console.error("Invalid response format:", data);
+        }
+      })
       .catch((error) => console.error("Error fetching buses:", error));
 
     // Initialize Socket.io
-    const socket = io("http://localhost:5000");
+    const socket = io(`${import.meta.env.VITE_BACKEND_URL}`);
 
     socket.on("bus:update", (data) => {
       setBuses(data);
@@ -57,22 +63,14 @@ const Home = () => {
   };
 
   const updateStatus = (busId, newStatus) => {
-    // Map status to API format
-    const statusMap = {
-      "green": "vacant",
-      "yellow": "available",
-      "red": "full"
-    };
-
-    fetch("http://localhost:5000/api/seats/report", {
-      method: "POST",
+    fetch(`${import.meta.env.VITE_BACKEND_URL}/api/buses/${busId}/seats`, {
+      method: "PATCH",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${localStorage.getItem('token')}`,
       },
       body: JSON.stringify({
-        busId,
-        status: statusMap[newStatus] || newStatus,
+        seatsAvailable: 0,
       }),
     })
       .then((res) => res.json())
@@ -80,7 +78,7 @@ const Home = () => {
         if (data.success) {
           setBuses((prev) =>
             prev.map((bus) =>
-              bus.id === busId ? { ...bus, status: newStatus } : bus
+              bus._id === busId ? { ...bus, status: newStatus } : bus
             )
           );
         } else {

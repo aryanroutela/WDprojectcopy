@@ -13,7 +13,7 @@ const generateToken = (id, role) => {
 // Signup
 const signup = async (req, res, next) => {
   try {
-    const { email, password, firstName, lastName, phone } = req.body;
+    const { email, password, firstName, lastName, phone, role } = req.body;
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
@@ -24,13 +24,17 @@ const signup = async (req, res, next) => {
       });
     }
 
+    // Only allow specific roles, default to "user"
+    const userRole = ["admin", "driver", "user"].includes(role) ? role : "user";
+
     // Create new user
     const user = new User({
       firstName,
       lastName,
       email,
       password,
-      phone
+      phone,
+      role: userRole
     });
 
     await user.save();
@@ -46,7 +50,8 @@ const signup = async (req, res, next) => {
         id: user._id,
         firstName: user.firstName,
         email: user.email,
-        role: user.role
+        role: user.role,
+        phone: user.phone
       }
     });
   } catch (error) {

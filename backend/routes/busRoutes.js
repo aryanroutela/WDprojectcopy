@@ -6,7 +6,7 @@ const {
   createBus,
   updateBusSeats,
   updateBusLocation
-} = require("../controllers/busController");
+} = require("../controllers/BusControler");
 const { validate } = require("../middleware/validation");
 const { verifyToken, isAdmin } = require("../middleware/auth");
 

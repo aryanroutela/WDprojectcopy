@@ -24,12 +24,32 @@ const schemas = {
     password: Joi.string().required(),
   }),
 
-  // Bus data
+  // Bus registration/update (for drivers)
   bus: Joi.object({
-    busNumber: Joi.string().trim().required(),
-    routeName: Joi.string().trim().required(),
-    capacity: Joi.number().min(1).required(),
-    seatsAvailable: Joi.number().min(0).required(),
+    busNumber: Joi.string().trim().required()
+      .messages({ "string.empty": "Bus number is required" }),
+    routeName: Joi.string().trim().required()
+      .messages({ "string.empty": "Route name is required" }),
+    capacity: Joi.number().integer().min(1).required()
+      .messages({ "number.min": "Capacity must be at least 1" }),
+    stops: Joi.array().items(
+      Joi.object({
+        name: Joi.string().required(),
+        sequence: Joi.number().required(),
+        arrivalTime: Joi.date().allow(null)
+      })
+    ).optional(),
+  }),
+
+  // Location update (for drivers)
+  location: Joi.object({
+    busId: Joi.string().required()
+      .messages({ "string.empty": "Bus ID is required" }),
+    latitude: Joi.number().required()
+      .messages({ "number.base": "Latitude must be a number" }),
+    longitude: Joi.number().required()
+      .messages({ "number.base": "Longitude must be a number" }),
+    eta: Joi.number().allow(null),
   }),
 
   // Contact form

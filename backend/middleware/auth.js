@@ -31,10 +31,43 @@ const isAdmin = (req, res, next) => {
   if (req.userRole !== "admin") {
     return res.status(403).json({
       success: false,
-      message: "You don't have permission to access this resource."
+      message: "❌ Access denied. Admin only."
     });
   }
   next();
 };
 
-module.exports = { verifyToken, isAdmin };
+// Check if user is driver
+const isDriver = (req, res, next) => {
+  if (req.userRole !== "driver") {
+    return res.status(403).json({
+      success: false,
+      message: "❌ Access denied. Driver only."
+    });
+  }
+  next();
+};
+
+// Check if user is user (passenger)
+const isUser = (req, res, next) => {
+  if (req.userRole !== "user") {
+    return res.status(403).json({
+      success: false,
+      message: "❌ Access denied. User role required."
+    });
+  }
+  next();
+};
+
+// Check if user is admin or driver
+const isAdminOrDriver = (req, res, next) => {
+  if (!["admin", "driver"].includes(req.userRole)) {
+    return res.status(403).json({
+      success: false,
+      message: "❌ Access denied. Admin or Driver only."
+    });
+  }
+  next();
+};
+
+module.exports = { verifyToken, isAdmin, isDriver, isUser, isAdminOrDriver };

@@ -20,14 +20,45 @@ const busSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  // Driver information
+  driverId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: [true, "Driver ID is required"]
+  },
+  // Real-time location
+  currentLocation: {
+    latitude: {
+      type: Number,
+      default: null
+    },
+    longitude: {
+      type: Number,
+      default: null
+    },
+    updatedAt: {
+      type: Date,
+      default: null
+    }
+  },
+  // ETA in minutes to next stop
+  eta: {
+    type: Number,
+    default: null
+  },
+  // Current stops (array of details)
+  stops: [
+    {
+      name: String,
+      sequence: Number,
+      arrivalTime: Date
+    }
+  ],
+  // Status: active, inactive, maintenance
   status: {
     type: String,
     enum: ["active", "inactive", "maintenance"],
-    default: "active"
-  },
-  lastUpdatedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User"
+    default: "inactive"
   },
   createdAt: {
     type: Date,

@@ -1,79 +1,104 @@
-import React, { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 
 const Navbar = () => {
-  const location = useLocation();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const navigate = useNavigate();
+  const [isOpen, setIsOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
-  const isActive = (path) => location.pathname === path;
+  const token = localStorage.getItem("token");
+  const userJson = localStorage.getItem("user");
+  const user = userJson ? JSON.parse(userJson) : null;
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    toast.success("Logged out successfully");
+    navigate("/");
+    setIsOpen(false);
+  };
+
+  const getDashboardLink = () => {
+    if (!user) return "/login";
+    if (user.role === "admin") return "/admin-dashboard";
+    if (user.role === "driver") return "/driver-dashboard";
+    return "/user-dashboard";
+  };
 
   return (
     <nav style={styles.navbar}>
-      {/* Logo */}
-      <Link to="/" style={styles.logo}>
-        <span style={styles.logoIcon}>🚍</span>
-        <span style={styles.logoText}>RouteFlow</span>
-      </Link>
+      <div style={styles.container}>
+        <Link to="/" style={styles.logo}>
+          🚍 RouteFlow
+        </Link>
 
-      {/* Desktop Navigation */}
-      <div style={styles.links}>
-        <Link
-          to="/"
-          style={{
-            ...styles.link,
-            ...(isActive("/") && styles.linkActive),
-          }}
-        >
-          Home
-        </Link>
-        <Link
-          to="/about"
-          style={{
-            ...styles.link,
-            ...(isActive("/about") && styles.linkActive),
-          }}
-        >
-          About
-        </Link>
-        <Link
-          to="/contact"
-          style={{
-            ...styles.link,
-            ...(isActive("/contact") && styles.linkActive),
-          }}
-        >
-          Contact
-        </Link>
+        {/* Desktop Navigation */}
+        {!isMobile && (
+          <div style={styles.navLinks}>
+            <Link to="/" style={styles.link}>Home</Link>
+            <Link to="/about" style={styles.link}>About</Link>
+            <Link to="/contact" style={styles.link}>Contact</Link>
+
+            {token && user ? (
+              <>
+                <Link
+                  to={getDashboardLink()}
+                  style={{ ...styles.link, color: "#ffd700", fontWeight: "bold" }}
+                >
+                  📊 {user.role.toUpperCase()}
+                </Link>
+                <button onClick={handleLogout} style={styles.logoutBtn}>
+                  Logout
+                </button>
+              </>
+            ) : (
+              <>
+                <Link to="/login" style={styles.link}>Login</Link>
+                <Link to="/signup" style={styles.signupBtn}>Sign Up</Link>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Mobile Toggle */}
+        {isMobile && (
+          <button style={styles.toggleBtn} onClick={() => setIsOpen(!isOpen)}>
+            ☰
+          </button>
+        )}
       </div>
-
-      {/* Right Side Icons */}
-      <div style={styles.rightSection}>
-        <button style={styles.iconButton} title="Search">
-          🔍
-        </button>
-        <button style={styles.userButton}>👤</button>
-      </div>
-
-      {/* Mobile Menu Toggle */}
-      <button
-        style={styles.mobileToggle}
-        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-      >
-        ☰
-      </button>
 
       {/* Mobile Menu */}
-      {mobileMenuOpen && (
+      {isMobile && isOpen && (
         <div style={styles.mobileMenu}>
-          <Link to="/" style={styles.mobileLink}>
-            Home
-          </Link>
-          <Link to="/about" style={styles.mobileLink}>
-            About
-          </Link>
-          <Link to="/contact" style={styles.mobileLink}>
-            Contact
-          </Link>
+          <Link to="/" style={styles.mobileLink} onClick={() => setIsOpen(false)}>Home</Link>
+          <Link to="/about" style={styles.mobileLink} onClick={() => setIsOpen(false)}>About</Link>
+          <Link to="/contact" style={styles.mobileLink} onClick={() => setIsOpen(false)}>Contact</Link>
+
+          {token && user ? (
+            <>
+              <Link to={getDashboardLink()} style={styles.mobileLink} onClick={() => setIsOpen(false)}>
+                Dashboard ({user.role})
+              </Link>
+              <button onClick={handleLogout} style={styles.mobileLogoutBtn}>
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <Link to="/login" style={styles.mobileLink} onClick={() => setIsOpen(false)}>Login</Link>
+              <Link to="/signup" style={styles.mobileLink} onClick={() => setIsOpen(false)}>Sign Up</Link>
+            </>
+          )}
         </div>
       )}
     </nav>
@@ -82,153 +107,90 @@ const Navbar = () => {
 
 export default Navbar;
 
-/* ================= INLINE CSS ================= */
-
 const styles = {
   navbar: {
+    background: "linear-gradient(135deg, #ff8c42 0%, #ff6b35 100%)",
+    color: "white",
+    position: "sticky",
+    top: 0,
+    zIndex: 100,
+    boxShadow: "0 2px 8px rgba(255, 107, 53, 0.2)"
+  },
+  container: {
+    maxWidth: "1200px",
+    margin: "0 auto",
+    padding: "0 20px",
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: "16px 32px",
-    position: "sticky",
-    top: 0,
-    zIndex: 1000,
-    background:
-      "rgba(255, 255, 255, 0.7) linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 250, 245, 0.6) 100%)",
-    backdropFilter: "blur(20px)",
-    WebkitBackdropFilter: "blur(20px)",
-    borderBottom: "1px solid rgba(255, 122, 24, 0.1)",
-    boxShadow: "0 8px 32px rgba(255, 122, 24, 0.1)",
-    "@media (maxWidth: 768px)": {
-      padding: "12px 16px",
-    },
+    height: "70px"
   },
-
   logo: {
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-    textDecoration: "none",
-    cursor: "pointer",
-    transition: "transform 0.3s ease",
-  },
-
-  logoIcon: {
-    fontSize: "28px",
-    animation: "float 3s ease-in-out infinite",
-  },
-
-  logoText: {
     fontSize: "24px",
-    fontWeight: "700",
-    background: "linear-gradient(135deg, #ff7a18 0%, #ff9c42 100%)",
-    WebkitBackgroundClip: "text",
-    WebkitTextFillColor: "transparent",
-    backgroundClip: "text",
-    letterSpacing: "-0.5px",
-  },
-
-  links: {
-    display: "flex",
-    gap: "32px",
-    "@media (maxWidth: 768px)": {
-      display: "none",
-    },
-  },
-
-  link: {
+    fontWeight: "bold",
     textDecoration: "none",
-    color: "#333",
+    color: "white"
+  },
+  navLinks: {
+    display: "flex",
+    gap: "20px",
+    alignItems: "center"
+  },
+  link: {
+    color: "white",
+    textDecoration: "none",
+    fontSize: "14px",
     fontWeight: "600",
-    fontSize: "15px",
-    paddingBottom: "6px",
-    borderBottom: "2px solid transparent",
-    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+    transition: "opacity 0.3s ease"
+  },
+  signupBtn: {
+    background: "white",
+    color: "#ff6b35",
+    padding: "8px 16px",
+    borderRadius: "6px",
+    textDecoration: "none",
+    fontWeight: "bold",
     cursor: "pointer",
-    position: "relative",
-  },
-
-  linkActive: {
-    color: "#ff7a18",
-    borderBottom: "2px solid #ff7a18",
-    textShadow: "0 0 12px rgba(255, 122, 24, 0.2)",
-  },
-
-  rightSection: {
-    display: "flex",
-    gap: "16px",
-    alignItems: "center",
-    "@media (maxWidth: 768px)": {
-      display: "none",
-    },
-  },
-
-  iconButton: {
-    background: "transparent",
     border: "none",
-    fontSize: "20px",
-    cursor: "pointer",
-    padding: "8px",
-    borderRadius: "50%",
-    transition: "all 0.3s ease",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
+    transition: "all 0.3s ease"
   },
-
-  userButton: {
-    background: "linear-gradient(135deg, #ff7a18 0%, #ff9c42 100%)",
-    border: "none",
-    fontSize: "18px",
-    width: "40px",
-    height: "40px",
-    borderRadius: "50%",
+  logoutBtn: {
+    background: "rgba(255,255,255,0.2)",
+    color: "white",
+    padding: "8px 16px",
+    borderRadius: "6px",
+    border: "1px solid white",
     cursor: "pointer",
-    transition: "all 0.3s ease",
-    boxShadow: "0 4px 15px rgba(255, 122, 24, 0.3)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
+    fontWeight: "600",
+    transition: "all 0.3s ease"
   },
-
-  mobileToggle: {
-    display: "none",
-    background: "linear-gradient(135deg, #ff7a18 0%, #ff9c42 100%)",
+  toggleBtn: {
+    background: "none",
     border: "none",
     color: "white",
     fontSize: "24px",
-    cursor: "pointer",
-    padding: "8px 12px",
-    borderRadius: "12px",
-    "@media (maxWidth: 768px)": {
-      display: "block",
-    },
+    cursor: "pointer"
   },
-
   mobileMenu: {
-    position: "absolute",
-    top: "70px",
-    left: 0,
-    right: 0,
-    background: "rgba(255, 255, 255, 0.95)",
-    backdropFilter: "blur(20px)",
     display: "flex",
     flexDirection: "column",
-    padding: "20px",
-    gap: "15px",
-    borderBottom: "1px solid rgba(255, 122, 24, 0.1)",
-    "@media (minWidth: 769px)": {
-      display: "none",
-    },
+    padding: "15px",
+    background: "rgba(0,0,0,0.15)"
   },
-
   mobileLink: {
+    color: "white",
     textDecoration: "none",
-    color: "#333",
-    fontWeight: "600",
-    fontSize: "16px",
-    padding: "10px",
-    borderRadius: "8px",
-    transition: "all 0.3s ease",
+    padding: "10px 0",
+    fontWeight: "500"
   },
+  mobileLogoutBtn: {
+    background: "rgba(255,255,255,0.2)",
+    color: "white",
+    padding: "10px",
+    borderRadius: "6px",
+    border: "1px solid white",
+    marginTop: "10px",
+    cursor: "pointer",
+    fontWeight: "600"
+  }
 };

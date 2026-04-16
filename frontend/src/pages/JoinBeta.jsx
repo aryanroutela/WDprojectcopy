@@ -4,9 +4,12 @@ import { toast } from "react-toastify";
 
 const JoinBeta = () => {
   const [form, setForm] = useState({
-    name: "",
+    firstName: "",
+    lastName: "",
     email: "",
-    reason: "",
+    school: "",
+    grade: "",
+    referral: "",
   });
 
   const [loading, setLoading] = useState(false);
@@ -19,8 +22,8 @@ const JoinBeta = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!form.name || !form.email || !form.reason) {
-      toast.error("Please fill all fields");
+    if (!form.firstName || !form.email || !form.school || !form.grade) {
+      toast.error("Please fill all required fields");
       return;
     }
 
@@ -28,7 +31,7 @@ const JoinBeta = () => {
 
     try {
       await axios.post(
-        `${import.meta.env.VITE_BACKEND_URL}/api/preregister`,
+        `${import.meta.env.VITE_BACKEND_URL}/api/preregister/preregister`,
         form
       );
 
@@ -36,9 +39,12 @@ const JoinBeta = () => {
       setSubmitted(true);
 
       setForm({
-        name: "",
+        firstName: "",
+        lastName: "",
         email: "",
-        reason: "",
+        school: "",
+        grade: "",
+        referral: "",
       });
 
     } catch (err) {
@@ -82,9 +88,19 @@ const JoinBeta = () => {
                   <input
                     style={styles.input}
                     type="text"
-                    name="name"
-                    placeholder="Full Name"
-                    value={form.name}
+                    name="firstName"
+                    placeholder="First Name *"
+                    value={form.firstName}
+                    onChange={handleChange}
+                    required
+                  />
+
+                  <input
+                    style={styles.input}
+                    type="text"
+                    name="lastName"
+                    placeholder="Last Name"
+                    value={form.lastName}
                     onChange={handleChange}
                   />
 
@@ -92,16 +108,37 @@ const JoinBeta = () => {
                     style={styles.input}
                     type="email"
                     name="email"
-                    placeholder="Email Address"
+                    placeholder="Email Address *"
                     value={form.email}
                     onChange={handleChange}
+                    required
+                  />
+
+                  <input
+                    style={styles.input}
+                    type="text"
+                    name="school"
+                    placeholder="School Name *"
+                    value={form.school}
+                    onChange={handleChange}
+                    required
+                  />
+
+                  <input
+                    style={styles.input}
+                    type="text"
+                    name="grade"
+                    placeholder="Grade/Class *"
+                    value={form.grade}
+                    onChange={handleChange}
+                    required
                   />
 
                   <textarea
                     style={styles.textarea}
-                    name="reason"
-                    placeholder="Why do you want early access?"
-                    value={form.reason}
+                    name="referral"
+                    placeholder="How did you hear about us?"
+                    value={form.referral}
                     onChange={handleChange}
                   />
 

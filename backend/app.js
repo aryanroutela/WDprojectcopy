@@ -6,8 +6,9 @@ const connectDB = require("./config/db");
 
 // Routes
 const authRoutes = require("./routes/authRoutes");
-const busRoutes = require("./routes/busRoutes");
-const registrationRoutes = require("./routes/registrationRoutes");
+const driverRoutes = require("./routes/driverRoutes");
+const adminRoutes = require("./routes/adminRoutes");
+const userRoutes = require("./routes/userRoutes");
 const contactRoutes = require("./routes/contactRoutes");
 
 // Middleware
@@ -34,14 +35,22 @@ app.use(express.urlencoded({ extended: true }));
 app.get("/", (req, res) => {
   res.json({ 
     message: "🚀 RouteFlow Backend Running!",
-    version: "1.0.0"
+    version: "1.0.0",
+    endpoints: {
+      auth: "/api/auth",
+      driver: "/api/driver",
+      admin: "/api/admin",
+      user: "/api/user",
+      contact: "/api/contact"
+    }
   });
 });
 
 // API Routes
 app.use("/api/auth", authRoutes);
-app.use("/api/buses", busRoutes);
-app.use("/api/preregister", registrationRoutes);
+app.use("/api/driver", driverRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/user", userRoutes);
 app.use("/api/contact", contactRoutes);
 
 // 404 Handler
