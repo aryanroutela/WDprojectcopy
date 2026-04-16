@@ -10,6 +10,7 @@ const driverRoutes = require("./routes/driverRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const userRoutes = require("./routes/userRoutes");
 const contactRoutes = require("./routes/contactRoutes");
+const complaintRoutes = require("./routes/complaintRoutes");
 
 // Middleware
 const errorHandler = require("./middleware/errorHandler");
@@ -41,7 +42,8 @@ app.get("/", (req, res) => {
       driver: "/api/driver",
       admin: "/api/admin",
       user: "/api/user",
-      contact: "/api/contact"
+      contact: "/api/contact",
+      complaints: "/api/complaints"
     }
   });
 });
@@ -52,6 +54,7 @@ app.use("/api/driver", driverRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/contact", contactRoutes);
+app.use("/api/complaints", complaintRoutes);
 
 // 404 Handler
 app.use((req, res) => {

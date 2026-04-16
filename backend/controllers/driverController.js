@@ -9,7 +9,7 @@ const User = require("../models/User");
  */
 const registerBus = async (req, res, next) => {
   try {
-    const { busNumber, routeName, capacity, stops } = req.body;
+    const { busNumber, routeName, source, destination, capacity, stops } = req.body;
     const driverId = req.userId;
 
     // Check if bus already exists
@@ -25,6 +25,8 @@ const registerBus = async (req, res, next) => {
     const bus = new Bus({
       busNumber,
       routeName,
+      source,
+      destination,
       capacity,
       seatsAvailable: capacity,
       driverId,

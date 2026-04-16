@@ -37,30 +37,29 @@ const getAllBuses = async (req, res, next) => {
 };
 
 /**
- * Search buses by route
- * GET /api/user/buses/search?route=routeName
+ * Search buses by route, source, or destination
+ * GET /api/user/buses/search?route=routeName&source=...&destination=...
  */
 const searchBusesByRoute = async (req, res, next) => {
   try {
-    const { route } = req.query;
+    const { route, source, destination } = req.query;
 
-    if (!route) {
-      return res.status(400).json({
-        success: false,
-        message: "Route name is required"
-      });
-    }
+    // Build dynamic filter
+    let filter = { status: "active" };
+    if (route) filter.routeName = new RegExp(route, "i");
+    if (source) filter.source = new RegExp(source, "i");
+    if (destination) filter.destination = new RegExp(destination, "i");
 
-    const buses = await Bus.find({
-      status: "active",
-      routeName: new RegExp(route, "i")
-    }).populate("driverId", "firstName lastName phone");
+    const buses = await Bus.find(filter)
+      .populate("driverId", "firstName lastName phone");
 
     // Format response
     const busesData = buses.map(bus => ({
       _id: bus._id,
       busNumber: bus.busNumber,
       routeName: bus.routeName,
+      source: bus.source,
+      destination: bus.destination,
       capacity: bus.capacity,
       seatsAvailable: bus.seatsAvailable,
       occupancy: ((bus.capacity - bus.seatsAvailable) / bus.capacity * 100).toFixed(1),

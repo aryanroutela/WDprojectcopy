@@ -16,6 +16,7 @@ const schemas = {
       .required()
       .messages({ "string.min": "Password must be at least 6 characters" }),
     phone: Joi.string().allow(""),
+    role: Joi.string().valid("user", "driver", "admin").default("user"),
   }),
 
   // Login only
@@ -30,6 +31,10 @@ const schemas = {
       .messages({ "string.empty": "Bus number is required" }),
     routeName: Joi.string().trim().required()
       .messages({ "string.empty": "Route name is required" }),
+    source: Joi.string().trim().required()
+      .messages({ "string.empty": "Source is required" }),
+    destination: Joi.string().trim().required()
+      .messages({ "string.empty": "Destination is required" }),
     capacity: Joi.number().integer().min(1).required()
       .messages({ "number.min": "Capacity must be at least 1" }),
     stops: Joi.array().items(

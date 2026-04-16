@@ -11,6 +11,14 @@ const busSchema = new mongoose.Schema({
     type: String,
     required: [true, "Route name is required"]
   },
+  source: {
+    type: String,
+    required: [true, "Source is required"]
+  },
+  destination: {
+    type: String,
+    required: [true, "Destination is required"]
+  },
   capacity: {
     type: Number,
     required: [true, "Bus capacity is required"],

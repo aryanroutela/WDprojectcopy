@@ -1,31 +1,25 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
+import { useLanguage } from "../context/LanguageContext";
 
 const Navbar = () => {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-
-  const token = localStorage.getItem("token");
-  const userJson = localStorage.getItem("user");
-  const user = userJson ? JSON.parse(userJson) : null;
-
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
+  const { token, user, logoutAuth } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const { language, toggleLanguage, t } = useLanguage();
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    toast.success("Logged out successfully");
+    logoutAuth();
+    toast.success(language === "en" ? "Logged out successfully" : "सफलतापूर्वक लॉग आउट किया गया");
     navigate("/");
     setIsOpen(false);
   };
+
+  const close = () => setIsOpen(false);
 
   const getDashboardLink = () => {
     if (!user) return "/login";
@@ -35,162 +29,100 @@ const Navbar = () => {
   };
 
   return (
-    <nav style={styles.navbar}>
-      <div style={styles.container}>
-        <Link to="/" style={styles.logo}>
+    <nav className="navbar">
+      <div className="navbar-inner">
+        <Link to="/" className="navbar-logo" onClick={close}>
           🚍 RouteFlow
         </Link>
 
-        {/* Desktop Navigation */}
-        {!isMobile && (
-          <div style={styles.navLinks}>
-            <Link to="/" style={styles.link}>Home</Link>
-            <Link to="/about" style={styles.link}>About</Link>
-            <Link to="/contact" style={styles.link}>Contact</Link>
+        {/* Desktop Nav */}
+        <div className="navbar-links">
+          <Link to="/">{t('nav.home')}</Link>
+          <Link to="/about">{t('nav.about')}</Link>
+          <Link to="/contact">{t('nav.contact')}</Link>
 
-            {token && user ? (
-              <>
-                <Link
-                  to={getDashboardLink()}
-                  style={{ ...styles.link, color: "#ffd700", fontWeight: "bold" }}
-                >
-                  📊 {user.role.toUpperCase()}
-                </Link>
-                <button onClick={handleLogout} style={styles.logoutBtn}>
-                  Logout
-                </button>
-              </>
-            ) : (
-              <>
-                <Link to="/login" style={styles.link}>Login</Link>
-                <Link to="/signup" style={styles.signupBtn}>Sign Up</Link>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* Mobile Toggle */}
-        {isMobile && (
-          <button style={styles.toggleBtn} onClick={() => setIsOpen(!isOpen)}>
-            ☰
+          <button onClick={toggleTheme} style={{ fontSize: "16px", padding: '8px', cursor: 'pointer' }}>
+            {theme === "light" ? "🌙" : "☀️"}
           </button>
-        )}
-      </div>
-
-      {/* Mobile Menu */}
-      {isMobile && isOpen && (
-        <div style={styles.mobileMenu}>
-          <Link to="/" style={styles.mobileLink} onClick={() => setIsOpen(false)}>Home</Link>
-          <Link to="/about" style={styles.mobileLink} onClick={() => setIsOpen(false)}>About</Link>
-          <Link to="/contact" style={styles.mobileLink} onClick={() => setIsOpen(false)}>Contact</Link>
+          
+          <button onClick={toggleLanguage} style={{ fontSize: "14px", fontWeight: "bold", padding: '8px', cursor: 'pointer' }}>
+             {language === 'en' ? 'हिंदी' : 'EN'}
+          </button>
 
           {token && user ? (
             <>
-              <Link to={getDashboardLink()} style={styles.mobileLink} onClick={() => setIsOpen(false)}>
-                Dashboard ({user.role})
+              <Link to={getDashboardLink()} className="nav-role">
+                {user.role === "admin" ? "🛡️" : user.role === "driver" ? "🚌" : "👤"}{" "}
+                {t('nav.dashboard')}
               </Link>
-              <button onClick={handleLogout} style={styles.mobileLogoutBtn}>
-                Logout
+              <button className="nav-btn-logout" onClick={handleLogout}>
+                {t('nav.logout')}
               </button>
             </>
           ) : (
             <>
-              <Link to="/login" style={styles.mobileLink} onClick={() => setIsOpen(false)}>Login</Link>
-              <Link to="/signup" style={styles.mobileLink} onClick={() => setIsOpen(false)}>Sign Up</Link>
+              <Link to="/login">{t('nav.login')}</Link>
+              <Link to="/signup" className="nav-btn-primary">
+                {t('nav.signup')}
+              </Link>
             </>
           )}
         </div>
-      )}
+
+        {/* Mobile Toggle & Actions */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }} className="mobile-actions">
+          <button className="nav-toggle" onClick={toggleTheme} style={{ display: 'none', padding: '6px' }}>
+             {theme === "light" ? "🌙" : "☀️"}
+          </button>
+          <button className="nav-toggle" onClick={toggleLanguage} style={{ display: 'none', fontSize: "12px", fontWeight: "bold" }}>
+             {language === 'en' ? 'हिं' : 'EN'}
+          </button>
+          
+          {/* Note: I added simple display none logic above which can be overridden via css for pure mobile. 
+              Let's ensure toggle button is purely mobile via simple inline inline style */}
+          
+          <button className="nav-toggle" onClick={() => setIsOpen(!isOpen)}>
+            {isOpen ? "✕" : "☰"}
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile Menu */}
+      <div className={`nav-mobile ${isOpen ? "open" : ""}`}>
+        {/* We place toggles here for clear mobile UX */}
+        <div style={{ display: 'flex', gap: 10, padding: '12px 16px', background: 'var(--primary-bg)', borderRadius: 'var(--radius)', marginBottom: 8, marginTop: 8 }}>
+           <button onClick={toggleTheme} style={{ flex: 1, textAlign: 'center', padding: '8px', border: '1px solid var(--border)' }}>
+             {theme === "light" ? "🌙 Dark Mode" : "☀️ Light Mode"}
+           </button>
+           <button onClick={toggleLanguage} style={{ flex: 1, textAlign: 'center', padding: '8px', border: '1px solid var(--border)', fontWeight: 'bold' }}>
+             {language === 'en' ? 'हिंदी में बदलें' : 'Switch to English'}
+           </button>
+        </div>
+
+        <Link to="/" onClick={close}>{t('nav.home')}</Link>
+        <Link to="/about" onClick={close}>{t('nav.about')}</Link>
+        <Link to="/contact" onClick={close}>{t('nav.contact')}</Link>
+
+        {token && user ? (
+          <>
+            <Link to={getDashboardLink()} onClick={close}>
+              📊 {t('nav.dashboard')} ({user.role})
+            </Link>
+            <button onClick={handleLogout} style={{ color: "var(--red)" }}>
+              {t('nav.logout')}
+            </button>
+          </>
+        ) : (
+          <>
+            <Link to="/login" onClick={close}>{t('nav.login')}</Link>
+            <Link to="/signup" onClick={close} style={{ color: "var(--primary)", fontWeight: 600 }}>
+              {t('nav.signup')}
+            </Link>
+          </>
+        )}
+      </div>
     </nav>
   );
 };
 
 export default Navbar;
-
-const styles = {
-  navbar: {
-    background: "linear-gradient(135deg, #ff8c42 0%, #ff6b35 100%)",
-    color: "white",
-    position: "sticky",
-    top: 0,
-    zIndex: 100,
-    boxShadow: "0 2px 8px rgba(255, 107, 53, 0.2)"
-  },
-  container: {
-    maxWidth: "1200px",
-    margin: "0 auto",
-    padding: "0 20px",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    height: "70px"
-  },
-  logo: {
-    fontSize: "24px",
-    fontWeight: "bold",
-    textDecoration: "none",
-    color: "white"
-  },
-  navLinks: {
-    display: "flex",
-    gap: "20px",
-    alignItems: "center"
-  },
-  link: {
-    color: "white",
-    textDecoration: "none",
-    fontSize: "14px",
-    fontWeight: "600",
-    transition: "opacity 0.3s ease"
-  },
-  signupBtn: {
-    background: "white",
-    color: "#ff6b35",
-    padding: "8px 16px",
-    borderRadius: "6px",
-    textDecoration: "none",
-    fontWeight: "bold",
-    cursor: "pointer",
-    border: "none",
-    transition: "all 0.3s ease"
-  },
-  logoutBtn: {
-    background: "rgba(255,255,255,0.2)",
-    color: "white",
-    padding: "8px 16px",
-    borderRadius: "6px",
-    border: "1px solid white",
-    cursor: "pointer",
-    fontWeight: "600",
-    transition: "all 0.3s ease"
-  },
-  toggleBtn: {
-    background: "none",
-    border: "none",
-    color: "white",
-    fontSize: "24px",
-    cursor: "pointer"
-  },
-  mobileMenu: {
-    display: "flex",
-    flexDirection: "column",
-    padding: "15px",
-    background: "rgba(0,0,0,0.15)"
-  },
-  mobileLink: {
-    color: "white",
-    textDecoration: "none",
-    padding: "10px 0",
-    fontWeight: "500"
-  },
-  mobileLogoutBtn: {
-    background: "rgba(255,255,255,0.2)",
-    color: "white",
-    padding: "10px",
-    borderRadius: "6px",
-    border: "1px solid white",
-    marginTop: "10px",
-    cursor: "pointer",
-    fontWeight: "600"
-  }
-};

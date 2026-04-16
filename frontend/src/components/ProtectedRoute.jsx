@@ -1,13 +1,12 @@
 import React from "react";
 import { Navigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 /**
  * ProtectedRoute component to guard routes based on authentication and role
  */
 const ProtectedRoute = ({ component: Component, requiredRole = null }) => {
-  const token = localStorage.getItem("token");
-  const userJson = localStorage.getItem("user");
-  const user = userJson ? JSON.parse(userJson) : null;
+  const { user, token } = useAuth();
 
   // Not authenticated
   if (!token || !user) {

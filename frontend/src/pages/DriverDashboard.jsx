@@ -1,341 +1,218 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import { useAuth } from "../context/AuthContext";
+import { io } from "socket.io-client";
+
+const API = import.meta.env.VITE_BACKEND_URL;
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || API;
 
 const DriverDashboard = () => {
+  const { token, user } = useAuth();
   const [buses, setBuses] = useState([]);
-  const [selectedBus, setSelectedBus] = useState(null);
-  const [showRegisterForm, setShowRegisterForm] = useState(false);
-  const [form, setForm] = useState({
-    busNumber: "",
-    routeName: "",
-    capacity: "",
-    stops: []
-  });
-  const [locationForm, setLocationForm] = useState({
-    latitude: "",
-    longitude: "",
-    eta: ""
-  });
-  const [seatsForm, setSeatsForm] = useState("");
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
+  const [tracking, setTracking] = useState(false);
+  const socketRef = useRef(null);
+  const watchIdRef = useRef(null);
 
-  const token = localStorage.getItem("token");
+  const [showRegister, setShowRegister] = useState(false);
+  const [busForm, setBusForm] = useState({
+    busNumber: "", routeName: "", source: "", destination: "", capacity: ""
+  });
+  const [registering, setRegistering] = useState(false);
 
   useEffect(() => {
-    if (!token) {
-      navigate("/login");
-      return;
-    }
+    socketRef.current = io(SOCKET_URL);
     fetchMyBuses();
-  }, [token, navigate]);
+    return () => {
+      if (watchIdRef.current) navigator.geolocation.clearWatch(watchIdRef.current);
+      socketRef.current?.disconnect();
+    };
+  }, []);
 
   const fetchMyBuses = async () => {
     try {
-      const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get(
-        `${import.meta.env.VITE_BACKEND_URL}/api/driver/buses`,
-        { headers }
-      );
+      const res = await axios.get(`${API}/api/driver/buses`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setBuses(res.data.buses);
-      if (res.data.buses.length > 0) {
-        setSelectedBus(res.data.buses[0]);
-      }
-    } catch (err) {
-      toast.error("Failed to load buses");
-    } finally {
-      setLoading(false);
-    }
+    } catch { toast.error("Failed to load buses"); }
+    finally { setLoading(false); }
   };
 
   const handleRegisterBus = async (e) => {
     e.preventDefault();
-    
-    if (!form.busNumber || !form.routeName || !form.capacity) {
-      toast.error("Please fill all fields");
-      return;
+    if (!busForm.busNumber || !busForm.routeName || !busForm.source || !busForm.destination || !busForm.capacity) {
+      toast.error("All fields are required"); return;
     }
-
+    setRegistering(true);
     try {
-      const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.post(
-        `${import.meta.env.VITE_BACKEND_URL}/api/driver/bus/register`,
-        form,
-        { headers }
-      );
-
+      await axios.post(`${API}/api/driver/bus/register`, busForm, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       toast.success("Bus registered! 🚍");
-      setBuses([...buses, res.data.bus]);
-      setForm({ busNumber: "", routeName: "", capacity: "", stops: [] });
-      setShowRegisterForm(false);
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to register bus");
-    }
-  };
-
-  const handleUpdateLocation = async (e) => {
-    e.preventDefault();
-
-    if (!selectedBus || !locationForm.latitude || !locationForm.longitude) {
-      toast.error("Please select bus and enter location");
-      return;
-    }
-
-    try {
-      const headers = { Authorization: `Bearer ${token}` };
-      await axios.post(
-        `${import.meta.env.VITE_BACKEND_URL}/api/driver/bus/location`,
-        {
-          busId: selectedBus._id,
-          latitude: parseFloat(locationForm.latitude),
-          longitude: parseFloat(locationForm.longitude),
-          eta: locationForm.eta ? parseInt(locationForm.eta) : null
-        },
-        { headers }
-      );
-
-      toast.success("Location updated! 📍");
-      setLocationForm({ latitude: "", longitude: "", eta: "" });
-    } catch (err) {
-      toast.error("Failed to update location");
-    }
-  };
-
-  const handleUpdateSeats = async (e) => {
-    e.preventDefault();
-
-    if (!selectedBus || seatsForm === "") {
-      toast.error("Please select bus and enter seats");
-      return;
-    }
-
-    try {
-      const headers = { Authorization: `Bearer ${token}` };
-      await axios.patch(
-        `${import.meta.env.VITE_BACKEND_URL}/api/driver/bus/${selectedBus._id}/seats`,
-        { seatsAvailable: parseInt(seatsForm) },
-        { headers }
-      );
-
-      toast.success("Seats updated! 💺");
-      setSeatsForm("");
+      setShowRegister(false);
+      setBusForm({ busNumber: "", routeName: "", source: "", destination: "", capacity: "" });
       fetchMyBuses();
-    } catch (err) {
-      toast.error("Failed to update seats");
-    }
+    } catch (err) { toast.error(err.response?.data?.message || "Failed"); }
+    finally { setRegistering(false); }
   };
 
-  const handleStartService = async () => {
-    if (!selectedBus) return;
-
+  const handleStartService = async (busId) => {
     try {
-      const headers = { Authorization: `Bearer ${token}` };
-      await axios.post(
-        `${import.meta.env.VITE_BACKEND_URL}/api/driver/bus/${selectedBus._id}/start`,
-        {},
-        { headers }
-      );
-
+      await axios.post(`${API}/api/driver/bus/${busId}/start`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       toast.success("Service started! 🚀");
+      socketRef.current.emit("driver:joinBus", { busId, driverId: user?.id });
+      startTracking(busId);
       fetchMyBuses();
-    } catch (err) {
-      toast.error("Failed to start service");
-    }
+    } catch { toast.error("Failed to start service"); }
   };
 
-  const handleStopService = async () => {
-    if (!selectedBus) return;
-
+  const handleStopService = async (busId) => {
     try {
-      const headers = { Authorization: `Bearer ${token}` };
-      await axios.post(
-        `${import.meta.env.VITE_BACKEND_URL}/api/driver/bus/${selectedBus._id}/stop`,
-        {},
-        { headers }
-      );
-
-      toast.success("Service stopped! ⛔");
+      await axios.post(`${API}/api/driver/bus/${busId}/stop`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success("Service stopped ⛔");
+      stopTracking();
       fetchMyBuses();
-    } catch (err) {
-      toast.error("Failed to stop service");
-    }
+    } catch { toast.error("Failed to stop service"); }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    navigate("/login");
+  const startTracking = (busId) => {
+    if (!navigator.geolocation) { toast.error("Geolocation not supported"); return; }
+    setTracking(true);
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (pos) => {
+        socketRef.current.emit("driver:updateLocation", {
+          busId, driverId: user?.id,
+          latitude: pos.coords.latitude, longitude: pos.coords.longitude,
+          speed: pos.coords.speed || 0, eta: null
+        });
+      },
+      () => {},
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+    );
   };
 
-  if (loading) {
-    return <div style={styles.loading}>Loading dashboard...</div>;
-  }
+  const stopTracking = () => {
+    if (watchIdRef.current) navigator.geolocation.clearWatch(watchIdRef.current);
+    watchIdRef.current = null;
+    setTracking(false);
+  };
+
+  const handleUpdateSeats = async (busId, newSeats) => {
+    try {
+      await axios.patch(`${API}/api/driver/bus/${busId}/seats`, { seatsAvailable: newSeats }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const bus = buses.find((b) => b._id === busId);
+      if (bus) socketRef.current.emit("driver:updateSeats", { busId, seatsAvailable: newSeats, capacity: bus.capacity });
+      fetchMyBuses();
+    } catch (err) { toast.error(err.response?.data?.message || "Failed"); }
+  };
+
+  if (loading) return <div className="loading-page"><div className="spinner" /><p>Loading...</p></div>;
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <h1>🚗 Driver Dashboard</h1>
-        <button style={styles.logoutBtn} onClick={handleLogout}>
-          Logout
-        </button>
+    <div className="page">
+      {/* Header */}
+      <div className="dash-header">
+        <div className="container flex-between" style={{ flexWrap: "wrap", gap: 12 }}>
+          <div>
+            <h1>🚌 Driver Panel</h1>
+            <p>Welcome, {user?.firstName || "Driver"} {tracking && <span className="badge badge-green"><span className="live-dot" /> Live Tracking</span>}</p>
+          </div>
+          <button className="btn btn-primary btn-sm" onClick={() => setShowRegister(!showRegister)}>
+            ➕ Add Bus
+          </button>
+        </div>
       </div>
 
-      <div style={styles.mainContent}>
-        {/* My Buses Section */}
-        <div style={styles.section}>
-          <div style={styles.sectionHeader}>
-            <h2>My Buses</h2>
-            <button
-              style={styles.btnPrimary}
-              onClick={() => setShowRegisterForm(!showRegisterForm)}
-            >
-              {showRegisterForm ? "Cancel" : "+ Register Bus"}
-            </button>
-          </div>
-
-          {/* Register Bus Form */}
-          {showRegisterForm && (
-            <form onSubmit={handleRegisterBus} style={styles.form}>
-              <input
-                style={styles.input}
-                type="text"
-                placeholder="Bus Number (e.g., BUS-001)"
-                value={form.busNumber}
-                onChange={(e) => setForm({ ...form, busNumber: e.target.value })}
-              />
-              <input
-                style={styles.input}
-                type="text"
-                placeholder="Route Name (e.g., City Center - Airport)"
-                value={form.routeName}
-                onChange={(e) => setForm({ ...form, routeName: e.target.value })}
-              />
-              <input
-                style={styles.input}
-                type="number"
-                placeholder="Capacity (e.g., 50)"
-                value={form.capacity}
-                onChange={(e) => setForm({ ...form, capacity: e.target.value })}
-              />
-              <button type="submit" style={styles.btnPrimary}>
-                Register Bus
-              </button>
-            </form>
-          )}
-
-          {/* Buses List */}
-          <div style={styles.busesList}>
-            {buses.map((bus) => (
-              <div
-                key={bus._id}
-                style={{
-                  ...styles.busCard,
-                  ...(selectedBus?._id === bus._id && styles.busCardActive)
-                }}
-                onClick={() => setSelectedBus(bus)}
-              >
-                <h3>{bus.busNumber}</h3>
-                <p>Route: {bus.routeName}</p>
-                <p>Capacity: {bus.capacity} seats</p>
-                <p>Available: {bus.seatsAvailable} seats</p>
-                <span
-                  style={{
-                    ...styles.statusBadge,
-                    background: bus.status === "active" ? "#10b981" : "#ef4444"
-                  }}
-                >
-                  {bus.status}
-                </span>
+      {/* Register Form */}
+      {showRegister && (
+        <div className="section" style={{ background: "var(--white)", borderBottom: "1px solid var(--border)" }}>
+          <div className="container">
+            <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16 }}>Register New Bus</h3>
+            <form onSubmit={handleRegisterBus}>
+              <div className="form-row">
+                <div className="form-group"><label className="form-label">Bus Number *</label>
+                  <input className="form-input" placeholder="BUS-101" value={busForm.busNumber}
+                    onChange={(e) => setBusForm({ ...busForm, busNumber: e.target.value })} required /></div>
+                <div className="form-group"><label className="form-label">Route Name *</label>
+                  <input className="form-input" placeholder="Downtown Express" value={busForm.routeName}
+                    onChange={(e) => setBusForm({ ...busForm, routeName: e.target.value })} required /></div>
               </div>
-            ))}
+              <div className="form-row">
+                <div className="form-group"><label className="form-label">Source *</label>
+                  <input className="form-input" placeholder="City Center" value={busForm.source}
+                    onChange={(e) => setBusForm({ ...busForm, source: e.target.value })} required /></div>
+                <div className="form-group"><label className="form-label">Destination *</label>
+                  <input className="form-input" placeholder="Airport" value={busForm.destination}
+                    onChange={(e) => setBusForm({ ...busForm, destination: e.target.value })} required /></div>
+              </div>
+              <div className="form-row">
+                <div className="form-group"><label className="form-label">Capacity *</label>
+                  <input className="form-input" type="number" placeholder="40" min="1" value={busForm.capacity}
+                    onChange={(e) => setBusForm({ ...busForm, capacity: e.target.value })} required /></div>
+                <div className="form-group" style={{ display: "flex", alignItems: "flex-end" }}>
+                  <button className="btn btn-primary btn-block" disabled={registering}>
+                    {registering ? "Registering..." : "Register"}
+                  </button>
+                </div>
+              </div>
+            </form>
           </div>
         </div>
+      )}
 
-        {/* Operations Section */}
-        {selectedBus && (
-          <div style={styles.section}>
-            <h2>Bus Operations</h2>
+      {/* Buses */}
+      <div className="dash-content">
+        <h2 className="section-title">Your Buses ({buses.length})</h2>
+        {buses.length === 0 ? (
+          <div className="empty-state"><div className="empty-state-icon">🚌</div><p className="empty-state-text">No buses yet. Register one above!</p></div>
+        ) : (
+          <div className="card-grid">
+            {buses.map((bus) => (
+              <div key={bus._id} className="card">
+                <div className="bus-card-header">
+                  <span className="bus-number">{bus.busNumber}</span>
+                  <span className={`badge ${bus.status === "active" ? "badge-green" : "badge-gray"}`}>
+                    {bus.status === "active" ? "🟢 Active" : "⚪ Inactive"}
+                  </span>
+                </div>
+                <p className="bus-route">📍 {bus.routeName}</p>
+                <p className="text-sm text-muted mb-16">{bus.source || "N/A"} → {bus.destination || "N/A"}</p>
 
-            {/* Location Update */}
-            <div style={styles.formGroup}>
-              <h3>📍 Update Location</h3>
-              <form onSubmit={handleUpdateLocation} style={styles.form}>
-                <input
-                  style={styles.input}
-                  type="number"
-                  step="0.0001"
-                  placeholder="Latitude"
-                  value={locationForm.latitude}
-                  onChange={(e) =>
-                    setLocationForm({ ...locationForm, latitude: e.target.value })
-                  }
-                />
-                <input
-                  style={styles.input}
-                  type="number"
-                  step="0.0001"
-                  placeholder="Longitude"
-                  value={locationForm.longitude}
-                  onChange={(e) =>
-                    setLocationForm({ ...locationForm, longitude: e.target.value })
-                  }
-                />
-                <input
-                  style={styles.input}
-                  type="number"
-                  placeholder="ETA (minutes)"
-                  value={locationForm.eta}
-                  onChange={(e) =>
-                    setLocationForm({ ...locationForm, eta: e.target.value })
-                  }
-                />
-                <button type="submit" style={styles.btnPrimary}>
-                  Update Location
-                </button>
-              </form>
-            </div>
+                <div className="bus-stats mb-16">
+                  <div className="bus-stat"><span className="bus-stat-val">{bus.capacity}</span><span className="bus-stat-lbl">Capacity</span></div>
+                  <div className="bus-stat"><span className="bus-stat-val">{bus.seatsAvailable}</span><span className="bus-stat-lbl">Available</span></div>
+                </div>
 
-            {/* Seat Update */}
-            <div style={styles.formGroup}>
-              <h3>💺 Update Seat Availability</h3>
-              <form onSubmit={handleUpdateSeats} style={styles.form}>
-                <input
-                  style={styles.input}
-                  type="number"
-                  placeholder="Available Seats"
-                  value={seatsForm}
-                  onChange={(e) => setSeatsForm(e.target.value)}
-                  max={selectedBus.capacity}
-                />
-                <button type="submit" style={styles.btnPrimary}>
-                  Update Seats
-                </button>
-              </form>
-            </div>
+                {/* Seat Controls */}
+                <div className="mb-16">
+                  <div className="text-sm text-muted mb-8">Update Seats</div>
+                  <div className="seat-controls">
+                    <button className="seat-btn" onClick={() => handleUpdateSeats(bus._id, Math.max(0, bus.seatsAvailable - 1))}>−</button>
+                    <span className="seat-count">{bus.seatsAvailable}</span>
+                    <button className="seat-btn" onClick={() => handleUpdateSeats(bus._id, Math.min(bus.capacity, bus.seatsAvailable + 1))}>+</button>
+                  </div>
+                </div>
 
-            {/* Service Control */}
-            <div style={styles.formGroup}>
-              <h3>⚙️ Service Control</h3>
-              <div style={styles.buttonGroup}>
-                <button
-                  style={{
-                    ...styles.btnControl,
-                    background: selectedBus.status === "active" ? "#10b981" : "#667eea"
-                  }}
-                  onClick={handleStartService}
-                >
-                  🚀 Start Service
-                </button>
-                <button
-                  style={{ ...styles.btnControl, background: "#ef4444" }}
-                  onClick={handleStopService}
-                >
-                  ⛔ Stop Service
-                </button>
+                {/* Service Button */}
+                {bus.status === "active" ? (
+                  <button className="btn btn-danger btn-block btn-sm" onClick={() => handleStopService(bus._id)}>⛔ Stop Service</button>
+                ) : (
+                  <button className="btn btn-success btn-block btn-sm" onClick={() => handleStartService(bus._id)}>🚀 Start Service</button>
+                )}
+
+                {bus.currentLocation?.latitude && (
+                  <p className="text-sm text-muted mt-8">📍 {bus.currentLocation.latitude.toFixed(4)}, {bus.currentLocation.longitude.toFixed(4)}</p>
+                )}
               </div>
-            </div>
+            ))}
           </div>
         )}
       </div>
@@ -344,116 +221,3 @@ const DriverDashboard = () => {
 };
 
 export default DriverDashboard;
-
-const styles = {
-  container: {
-    padding: "20px",
-    background: "#f5f5f5",
-    minHeight: "100vh"
-  },
-  header: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    background: "white",
-    padding: "20px",
-    borderRadius: "8px",
-    marginBottom: "20px",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
-  },
-  logoutBtn: {
-    padding: "10px 20px",
-    background: "#ef4444",
-    color: "white",
-    border: "none",
-    borderRadius: "6px",
-    cursor: "pointer"
-  },
-  mainContent: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "20px"
-  },
-  section: {
-    background: "white",
-    padding: "20px",
-    borderRadius: "8px",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
-  },
-  sectionHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "20px"
-  },
-  busesList: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "10px"
-  },
-  busCard: {
-    padding: "15px",
-    border: "2px solid #ddd",
-    borderRadius: "6px",
-    cursor: "pointer",
-    transition: "all 0.3s"
-  },
-  busCardActive: {
-    borderColor: "#667eea",
-    background: "#f0f4ff"
-  },
-  statusBadge: {
-    padding: "4px 12px",
-    color: "white",
-    borderRadius: "4px",
-    fontSize: "12px",
-    fontWeight: "600",
-    display: "inline-block",
-    marginTop: "8px"
-  },
-  form: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "12px"
-  },
-  input: {
-    padding: "10px",
-    border: "1px solid #ddd",
-    borderRadius: "6px",
-    fontSize: "14px"
-  },
-  formGroup: {
-    marginBottom: "20px",
-    paddingBottom: "20px",
-    borderBottom: "1px solid #ddd"
-  },
-  buttonGroup: {
-    display: "flex",
-    gap: "10px"
-  },
-  btnPrimary: {
-    padding: "10px 16px",
-    background: "#667eea",
-    color: "white",
-    border: "none",
-    borderRadius: "6px",
-    cursor: "pointer",
-    fontWeight: "600"
-  },
-  btnControl: {
-    padding: "12px 20px",
-    color: "white",
-    border: "none",
-    borderRadius: "6px",
-    cursor: "pointer",
-    fontWeight: "600",
-    flex: 1
-  },
-  loading: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    height: "100vh",
-    fontSize: "18px"
-  }
-};
