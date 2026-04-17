@@ -19,32 +19,72 @@ const SmartSearch = ({ onResults, allBuses = [] }) => {
   const [destination, setDestination] = useState("");
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState(null);
+  const [userLocation, setUserLocation] = useState(null);
 
-  const handleSearch = async () => {
-    const src = source.trim();
-    if (!src) { toast.error("Please enter a source stop"); return; }
+  // Get user location for smart sorting
+  React.useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => {}
+      );
+    }
+  }, []);
+
+  const haversineDistance = (lat1, lng1, lat2, lng2) => {
+    if (!lat1 || !lng1 || !lat2 || !lng2) return Infinity;
+    const toRad = (x) => (x * Math.PI) / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+    return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  };
+
+  const handleSearch = async (searchSrc = source, searchDst = destination) => {
+    const src = searchSrc.trim();
+    if (!src) { 
+      setResults(null);
+      onResults(allBuses);
+      return; 
+    }
     setLoading(true);
     try {
       const params = new URLSearchParams({ source: src });
-      if (destination.trim()) params.append("destination", destination.trim());
+      if (searchDst.trim()) params.append("destination", searchDst.trim());
 
       const res = await axios.get(`${API}/api/routes/search?${params}`);
-      const found = res.data.buses || [];
+      let found = res.data.buses || [];
+
+      // Geolocation-aware sorting: sort by distance to user if location exists
+      if (userLocation) {
+        found.sort((a, b) => {
+          const distA = haversineDistance(userLocation.lat, userLocation.lng, a.currentLocation?.latitude, a.currentLocation?.longitude);
+          const distB = haversineDistance(userLocation.lat, userLocation.lng, b.currentLocation?.latitude, b.currentLocation?.longitude);
+          return distA - distB;
+        });
+      }
+
       setResults(found);
       onResults(found);
 
-      if (found.length === 0) {
-        toast.info("No buses found passing through that stop");
-      } else {
-        toast.success(`Found ${found.length} bus${found.length > 1 ? "es" : ""} passing through "${src}"`);
-      }
     } catch (err) {
-      toast.error("Search failed. Please try again.");
-      console.error(err);
+      console.error("Search failed:", err);
     } finally {
       setLoading(false);
     }
   };
+
+  // Debounced search when input changes
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      if (source.trim()) {
+        handleSearch(source, destination);
+      } else {
+        handleClear();
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [source, destination]);
 
   const handleClear = () => {
     setSource("");
@@ -54,7 +94,7 @@ const SmartSearch = ({ onResults, allBuses = [] }) => {
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === "Enter") handleSearch();
+    if (e.key === "Enter") handleSearch(source, destination);
   };
 
   return (

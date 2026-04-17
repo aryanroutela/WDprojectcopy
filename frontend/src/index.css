@@ -505,6 +505,11 @@ input, textarea, select { font-family: inherit; }
   box-shadow: 0 0 0 2px rgba(16,185,129,0.2) !important;
 }
 
+/* ── Smooth Leaflet Marker Animations ─────────────────────── */
+.leaflet-marker-icon {
+  transition: transform 1s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
 /* ── Mini checkpoint progress dots ───────────────────────── */
 .mini-progress-row {
   display: flex; align-items: center; gap: 3px; flex-wrap: wrap;
@@ -615,8 +620,21 @@ input, textarea, select { font-family: inherit; }
 .cp-name-passed   { color: var(--text-muted); }
 .cp-name-next     { color: #6366f1; font-weight: 700; }
 .cp-name-upcoming { color: var(--text-secondary); }
-.cp-connector { position: absolute; left: 14px; top: -8px; width: 2px; height: 8px; background: var(--border); }
+.cp-connector { position: absolute; left: 14px; top: -8px; width: 2px; height: 8px; background: var(--border); overflow: hidden; }
 .cp-connector-active { background: #10b981; }
+.cp-connector-active::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: white;
+  opacity: 0.3;
+  animation: slide-down-pulse 1.2s infinite ease-in-out;
+}
+@keyframes slide-down-pulse {
+  0% { transform: translateY(-100%); opacity: 0; }
+  50% { opacity: 0.6; }
+  100% { transform: translateY(100%); opacity: 0; }
+}
 .cp-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
 .cp-badge-next  { background: #ede9fe; color: #6366f1; }
 .cp-badge-start { background: #dbeafe; color: #2563eb; }

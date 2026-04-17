@@ -318,6 +318,34 @@ const initializeSocket = (io) => {
       console.log(`🔌 User disconnected: ${socket.id}`);
     });
   });
+
+  // Background heartbeat: broadcast active buses every 15s
+  setInterval(async () => {
+    try {
+      const buses = await Bus.find({ status: "active" }).lean();
+      if (buses.length > 0) {
+        const busesData = buses.map((bus) => ({
+          _id: bus._id,
+          busNumber: bus.busNumber,
+          routeName: bus.routeName,
+          location: bus.currentLocation,
+          currentLocation: bus.currentLocation,
+          eta: bus.eta,
+          seatsAvailable: bus.seatsAvailable,
+          capacity: bus.capacity,
+          occupancy: ((bus.capacity - bus.seatsAvailable) / bus.capacity * 100).toFixed(1) + "%",
+          checkpoints: bus.checkpoints || [],
+          currentCheckpointIdx: bus.currentCheckpointIdx ?? -1,
+          currentCheckpointName: bus.currentCheckpointName || null,
+          nextCheckpointName: bus.nextCheckpointName || null,
+          status: bus.status
+        }));
+        io.to("tracking-room").emit("buses:heartbeat", busesData);
+      }
+    } catch (error) {
+      console.error("Heartbeat error:", error);
+    }
+  }, 15000);
 };
 
 module.exports = initializeSocket;

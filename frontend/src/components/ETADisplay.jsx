@@ -20,15 +20,35 @@ const ETADisplay = ({ etaData, eta, busNumber }) => {
     );
   }
 
+  const [etaSeconds, setEtaSeconds] = React.useState(null);
+
+  React.useEffect(() => {
+    const rawEta = etaData?.etaToNextStop ?? eta;
+    if (rawEta != null && typeof rawEta === 'number') {
+      setEtaSeconds(rawEta * 60);
+    } else {
+      setEtaSeconds(null);
+    }
+  }, [etaData?.etaToNextStop, eta]);
+
+  React.useEffect(() => {
+    if (etaSeconds === null || etaSeconds <= 0) return;
+    const timer = setInterval(() => {
+      setEtaSeconds(prev => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [etaSeconds]);
+
   const stopsETA = etaData?.stopsETA || [];
-  const etaMinutes = etaData?.etaToNextStop ?? eta;
+  const displayMin = etaSeconds !== null ? Math.floor(etaSeconds / 60) : null;
+  const displaySec = etaSeconds !== null ? etaSeconds % 60 : null;
 
   return (
     <div className="eta-display">
       {/* Primary ETA badge */}
       <div className="eta-badge">
         <div className="eta-badge-time">
-          {etaMinutes != null ? `${etaMinutes} min` : "—"}
+          {displayMin != null ? `${displayMin}m ${String(displaySec).padStart(2, '0')}s` : "—"}
         </div>
         <div className="eta-badge-label">
           ETA to next stop

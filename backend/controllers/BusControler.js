@@ -6,28 +6,26 @@ const getAllBuses = async (req, res, next) => {
   try {
     const buses = await Bus.find({ status: "active" });
 
-    // Get latest location for each bus
-    const busesWithLocation = await Promise.all(
-      buses.map(async (bus) => {
-        const latestLocation = await Location.findOne(
-          { busId: bus._id }
-        ).sort({ timestamp: -1 }).limit(1);
-
-        return {
-          _id: bus._id,
-          busNumber: bus.busNumber,
-          routeName: bus.routeName,
-          capacity: bus.capacity,
-          seatsAvailable: bus.seatsAvailable,
-          status: bus.seatsAvailable > bus.capacity * 0.25 ? "green" : 
-                  bus.seatsAvailable > 0 ? "yellow" : "red",
-          location: latestLocation ? {
-            lat: latestLocation.latitude,
-            lng: latestLocation.longitude
-          } : null
-        };
-      })
-    );
+    const busesWithLocation = buses.map((bus) => {
+      const loc = bus.currentLocation;
+      return {
+        _id: bus._id,
+        busNumber: bus.busNumber,
+        routeName: bus.routeName,
+        capacity: bus.capacity,
+        seatsAvailable: bus.seatsAvailable,
+        status: bus.seatsAvailable > bus.capacity * 0.25 ? "green" : 
+                bus.seatsAvailable > 0 ? "yellow" : "red",
+        location: loc && loc.latitude ? {
+          lat: loc.latitude,
+          lng: loc.longitude
+        } : null,
+        currentLocation: loc,
+        eta: bus.eta || null,
+        currentCheckpointIdx: bus.currentCheckpointIdx,
+        nextCheckpointName: bus.nextCheckpointName
+      };
+    });
 
     res.status(200).json({
       success: true,

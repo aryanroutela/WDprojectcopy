@@ -46,6 +46,18 @@ const useLiveBuses = ({ userId, role = "user" } = {}) => {
       setLoading(false);
     });
 
+    // ---- Heartbeat snapshot ----
+    s.on("buses:heartbeat", (buses) => {
+      setBusMap((prev) => {
+        const next = { ...prev };
+        buses.forEach((b) => {
+          // Do not overwrite fresh etaData with null from heartbeat
+          next[b._id] = { ...next[b._id], ...b, etaData: next[b._id]?.etaData || b.etaData };
+        });
+        return next;
+      });
+    });
+
     // ---- Live location update ----
     s.on("bus:locationUpdate", (data) => {
       mergeBus(data.busId, {
