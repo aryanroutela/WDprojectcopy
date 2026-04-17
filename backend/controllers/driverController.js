@@ -1,5 +1,7 @@
 const Bus = require("../models/Bus");
 const User = require("../models/User");
+const Route = require("../models/Route");
+const { buildStopsETA } = require("../utils/etaCalculator");
 
 // ==================== DRIVER OPERATIONS ====================
 
@@ -9,39 +11,45 @@ const User = require("../models/User");
  */
 const registerBus = async (req, res, next) => {
   try {
-    const { busNumber, routeName, source, destination, capacity, stops } = req.body;
+    const { busNumber, routeName, source, destination, capacity, stops, checkpoints, routeId } = req.body;
     const driverId = req.userId;
 
-    // Check if bus already exists
     const existingBus = await Bus.findOne({ busNumber });
     if (existingBus) {
-      return res.status(409).json({
-        success: false,
-        message: "Bus already registered"
-      });
+      return res.status(409).json({ success: false, message: "Bus already registered" });
     }
 
-    // Create new bus
+    // If routeId provided, pull checkpoints from the Route document
+    let resolvedCheckpoints = checkpoints || [];
+    let resolvedSource = source;
+    let resolvedDestination = destination;
+
+    if (routeId) {
+      const route = await Route.findById(routeId).lean();
+      if (route) {
+        resolvedCheckpoints = route.checkpoints;
+        resolvedSource = route.checkpoints[0]?.name || source;
+        resolvedDestination = route.checkpoints[route.checkpoints.length - 1]?.name || destination;
+      }
+    }
+
     const bus = new Bus({
       busNumber,
       routeName,
-      source,
-      destination,
+      routeId: routeId || null,
+      source: resolvedSource,
+      destination: resolvedDestination,
       capacity,
       seatsAvailable: capacity,
       driverId,
+      checkpoints: resolvedCheckpoints,
       stops: stops || [],
       status: "inactive"
     });
 
     await bus.save();
 
-    // Update user to reference this bus
-    await User.findByIdAndUpdate(
-      driverId,
-      { busTaken: bus._id },
-      { new: true }
-    );
+    await User.findByIdAndUpdate(driverId, { busTaken: bus._id }, { new: true });
 
     res.status(201).json({
       success: true,
@@ -274,6 +282,34 @@ const getBusDetails = async (req, res, next) => {
   }
 };
 
+/**
+ * Update checkpoints for a bus (driver can add/edit stops)
+ * PATCH /api/driver/bus/:busId/checkpoints
+ */
+const updateCheckpoints = async (req, res, next) => {
+  try {
+    const { busId } = req.params;
+    const { checkpoints } = req.body;
+    const driverId = req.userId;
+
+    const bus = await Bus.findById(busId);
+    if (!bus) return res.status(404).json({ success: false, message: "Bus not found" });
+    if (bus.driverId.toString() !== driverId) {
+      return res.status(403).json({ success: false, message: "You can only update your own bus" });
+    }
+    if (!checkpoints || checkpoints.length < 2) {
+      return res.status(400).json({ success: false, message: "At least 2 checkpoints required" });
+    }
+
+    bus.checkpoints = checkpoints.sort((a, b) => a.sequence - b.sequence);
+    await bus.save();
+
+    res.status(200).json({ success: true, message: "Checkpoints updated!", checkpoints: bus.checkpoints });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   registerBus,
   updateBusLocation,
@@ -281,5 +317,6 @@ module.exports = {
   startService,
   stopService,
   getMyBuses,
-  getBusDetails
+  getBusDetails,
+  updateCheckpoints
 };

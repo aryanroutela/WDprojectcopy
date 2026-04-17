@@ -22,6 +22,7 @@ import Contact from "./pages/Contact";
 import AdminDashboard from "./pages/AdminDashboard";
 import DriverDashboard from "./pages/DriverDashboard";
 import UserDashboard from "./pages/UserDashboard";
+import LiveTrackingPage from "./pages/LiveTrackingPage";
 
 // Global Layout wrapper so Navbar is visible everywhere
 const GlobalLayout = () => (
@@ -46,6 +47,7 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/track" element={<LiveTrackingPage />} />
 
           {/* Auth Routes - Only accessible when not logged in */}
           <Route

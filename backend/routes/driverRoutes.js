@@ -7,7 +7,8 @@ const {
   startService,
   stopService,
   getMyBuses,
-  getBusDetails
+  getBusDetails,
+  updateCheckpoints
 } = require("../controllers/driverController");
 const { verifyToken, isDriver } = require("../middleware/auth");
 const { validate } = require("../middleware/validation");
@@ -27,5 +28,8 @@ router.patch("/bus/:busId/seats", updateSeatAvailability);
 // Service control
 router.post("/bus/:busId/start", startService);
 router.post("/bus/:busId/stop", stopService);
+
+// Checkpoint management
+router.patch("/bus/:busId/checkpoints", updateCheckpoints);
 
 module.exports = router;

@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+// Route model imported for routeId reference
 
 const busSchema = new mongoose.Schema({
   busNumber: {
@@ -11,6 +12,12 @@ const busSchema = new mongoose.Schema({
     type: String,
     required: [true, "Route name is required"]
   },
+  // Optional reference to a Route document (enables checkpoints & smart search)
+  routeId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Route",
+    default: null
+  },
   source: {
     type: String,
     required: [true, "Source is required"]
@@ -19,6 +26,16 @@ const busSchema = new mongoose.Schema({
     type: String,
     required: [true, "Destination is required"]
   },
+  // Inline checkpoints (copied from Route for fast access, or set manually)
+  checkpoints: [
+    {
+      name: { type: String },
+      sequence: { type: Number },
+      latitude: { type: Number, default: null },
+      longitude: { type: Number, default: null },
+      distanceFromStart: { type: Number, default: 0 }
+    }
+  ],
   capacity: {
     type: Number,
     required: [true, "Bus capacity is required"],
@@ -54,7 +71,12 @@ const busSchema = new mongoose.Schema({
     type: Number,
     default: null
   },
-  // Current stops (array of details)
+  // Live checkpoint progress
+  currentCheckpointIdx: { type: Number, default: -1 },
+  nextCheckpointIdx: { type: Number, default: 0 },
+  currentCheckpointName: { type: String, default: null },
+  nextCheckpointName: { type: String, default: null },
+  // Legacy stops array (kept for backward-compatibility)
   stops: [
     {
       name: String,

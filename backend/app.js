@@ -11,6 +11,8 @@ const adminRoutes = require("./routes/adminRoutes");
 const userRoutes = require("./routes/userRoutes");
 const contactRoutes = require("./routes/contactRoutes");
 const complaintRoutes = require("./routes/complaintRoutes");
+const busRoutes = require("./routes/busRoutes");
+const routeRoutes = require("./routes/routeRoutes");
 
 // Middleware
 const errorHandler = require("./middleware/errorHandler");
@@ -36,12 +38,14 @@ app.use(express.urlencoded({ extended: true }));
 app.get("/", (req, res) => {
   res.json({ 
     message: "🚀 RouteFlow Backend Running!",
-    version: "1.0.0",
+    version: "2.0.0",
     endpoints: {
       auth: "/api/auth",
       driver: "/api/driver",
       admin: "/api/admin",
       user: "/api/user",
+      buses: "/api/buses",
+      routes: "/api/routes",
       contact: "/api/contact",
       complaints: "/api/complaints"
     }
@@ -53,6 +57,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/driver", driverRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/user", userRoutes);
+app.use("/api/buses", busRoutes);
+app.use("/api/routes", routeRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/complaints", complaintRoutes);
 

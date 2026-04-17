@@ -37,9 +37,10 @@ const Navbar = () => {
 
         {/* Desktop Nav */}
         <div className="navbar-links">
-          <Link to="/">{t('nav.home')}</Link>
-          <Link to="/about">{t('nav.about')}</Link>
-          <Link to="/contact">{t('nav.contact')}</Link>
+          <Link to="/">{ t('nav.home')}</Link>
+          <Link to="/about">{ t('nav.about')}</Link>
+          <Link to="/contact">{ t('nav.contact')}</Link>
+          <Link to="/track" style={{ color: "var(--primary)", fontWeight: 600 }}>🗺️ Live Track</Link>
 
           <button onClick={toggleTheme} style={{ fontSize: "16px", padding: '8px', cursor: 'pointer' }}>
             {theme === "light" ? "🌙" : "☀️"}
@@ -102,6 +103,7 @@ const Navbar = () => {
         <Link to="/" onClick={close}>{t('nav.home')}</Link>
         <Link to="/about" onClick={close}>{t('nav.about')}</Link>
         <Link to="/contact" onClick={close}>{t('nav.contact')}</Link>
+        <Link to="/track" onClick={close} style={{ color: "var(--primary)", fontWeight: 600 }}>🗺️ Live Track</Link>
 
         {token && user ? (
           <>
