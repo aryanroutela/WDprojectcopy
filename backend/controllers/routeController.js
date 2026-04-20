@@ -1,6 +1,6 @@
 const Route = require("../models/Route");
 const Bus = require("../models/Bus");
-const { findBusesByStop, haversineDistance } = require("../utils/etaCalculator");
+const { findBusesByStop, haversineDistance, calculateETA } = require("../utils/etaCalculator");
 
 // ==================== ROUTE MANAGEMENT ====================
 
@@ -214,6 +214,17 @@ const searchBusesByStop = async (req, res, next) => {
         const remainingStops = checkpoints.filter(
           (cp) => cp.sequence >= srcStop.sequence
         );
+        
+        // Dynamically calculate ETA from bus to the matched source stop using Haversine distance
+        let matchedEta = null;
+        if (bus.currentLocation && bus.currentLocation.latitude && srcStop.latitude) {
+          matchedEta = calculateETA(
+            bus.currentLocation.latitude,
+            bus.currentLocation.longitude,
+            bus.speed || 30, // fallback to 30km/h if speed is 0 or null
+            srcStop
+          );
+        }
 
         return {
           _id: bus._id,
@@ -233,6 +244,7 @@ const searchBusesByStop = async (req, res, next) => {
             : bus.seatsAvailable > 0 ? "yellow" : "red",
           currentLocation: bus.currentLocation,
           eta: bus.eta,
+          matchedEta,
           currentCheckpointIdx: bus.currentCheckpointIdx ?? null,
           nextCheckpointName: bus.nextCheckpointName ?? null,
           driver: bus.driverId,

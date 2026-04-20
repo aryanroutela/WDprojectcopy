@@ -16,6 +16,35 @@ const LiveTrackingPage = () => {
   const [filteredBuses, setFilteredBuses] = useState([]);
   const [followBus, setFollowBus] = useState(false);
 
+  const haversineDistance = (lat1, lng1, lat2, lng2) => {
+    if (!lat1 || !lng1 || !lat2 || !lng2) return Infinity;
+    const toRad = (x) => (x * Math.PI) / 180;
+    const a = Math.sin(toRad(lat2 - lat1) / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(toRad(lng2 - lng1) / 2) ** 2;
+    return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  };
+
+  React.useEffect(() => {
+    setFilteredBuses((prev) => {
+      if (prev.length === 0) return [];
+      const prevMap = new Map(prev.map((b) => [b._id, b]));
+      return buses.filter((b) => prevMap.has(b._id)).map((liveBus) => {
+        const p = prevMap.get(liveBus._id);
+        let dynamicMatchedEta = p.matchedEta;
+        
+        if (liveBus.currentLocation?.latitude && p.matchedSourceStop?.latitude) {
+          const dist = haversineDistance(
+            liveBus.currentLocation.latitude, liveBus.currentLocation.longitude,
+            p.matchedSourceStop.latitude, p.matchedSourceStop.longitude
+          );
+          const speedFactor = liveBus.speed > 2 ? liveBus.speed : 30;
+          dynamicMatchedEta = Math.ceil((dist / speedFactor) * 60);
+        }
+
+        return { ...liveBus, matchedSourceStop: p.matchedSourceStop, matchedEta: dynamicMatchedEta };
+      });
+    });
+  }, [buses]);
+
   // Sync live data into selectedBus
   const liveBus = selectedBus
     ? buses.find((b) => b._id === selectedBus._id) || selectedBus
@@ -180,9 +209,11 @@ const LiveTrackingPage = () => {
                   </div>
                   <div style={{ fontSize: 12, color: "#64748b", margin: "3px 0" }}>{bus.routeName}</div>
                   <div style={{ display: "flex", gap: 10, fontSize: 12, flexWrap: "wrap" }}>
-                    {bus.eta != null && (
+                    {bus.matchedEta != null ? (
+                      <span style={{ color: "#6366f1", fontWeight: 600 }} title={`ETA to ${bus.matchedSourceStop?.name}`}>⏱ {bus.matchedEta}m to Src</span>
+                    ) : bus.eta != null ? (
                       <span style={{ color: "#6366f1", fontWeight: 600 }}>⏱ {bus.eta}m</span>
-                    )}
+                    ) : null}
                     {bus.nextCheckpointName && (
                       <span style={{ color: "#64748b" }}>🎯 {bus.nextCheckpointName}</span>
                     )}

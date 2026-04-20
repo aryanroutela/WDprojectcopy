@@ -213,9 +213,11 @@ const SmartSearch = ({ onResults, allBuses = [] }) => {
                 ))}
               </div>
 
-              {bus.eta != null && (
+              {bus.matchedEta != null ? (
+                <div className="match-card-eta">⏱ ETA: {bus.matchedEta} min to {bus.matchedSourceStop?.name}</div>
+              ) : bus.eta != null ? (
                 <div className="match-card-eta">⏱ ETA: {bus.eta} min to next stop</div>
-              )}
+              ) : null}
             </div>
           ))}
           {results.length > 3 && (

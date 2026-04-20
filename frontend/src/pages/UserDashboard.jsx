@@ -29,13 +29,33 @@ const UserDashboard = () => {
   const [complaint, setComplaint] = useState({ busNumber: "", description: "", rating: 3 });
   const [submitting, setSubmitting] = useState(false);
 
+  const haversineDistance = (lat1, lng1, lat2, lng2) => {
+    if (!lat1 || !lng1 || !lat2 || !lng2) return Infinity;
+    const toRad = (x) => (x * Math.PI) / 180;
+    const a = Math.sin(toRad(lat2 - lat1) / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(toRad(lng2 - lng1) / 2) ** 2;
+    return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  };
+
   // Sync filteredBuses with live bus updates
   useEffect(() => {
     setFilteredBuses((prev) => {
       if (prev.length === 0) return buses;
-      // Keep same filtered set but refresh their live data
-      const prevIds = new Set(prev.map((b) => b._id));
-      return buses.filter((b) => prevIds.has(b._id));
+      const prevMap = new Map(prev.map((b) => [b._id, b]));
+      return buses.filter((b) => prevMap.has(b._id)).map((liveBus) => {
+        const p = prevMap.get(liveBus._id);
+        let dynamicMatchedEta = p.matchedEta;
+        
+        if (liveBus.currentLocation?.latitude && p.matchedSourceStop?.latitude) {
+          const dist = haversineDistance(
+            liveBus.currentLocation.latitude, liveBus.currentLocation.longitude,
+            p.matchedSourceStop.latitude, p.matchedSourceStop.longitude
+          );
+          const speedFactor = liveBus.speed > 2 ? liveBus.speed : 30;
+          dynamicMatchedEta = Math.ceil((dist / speedFactor) * 60);
+        }
+
+        return { ...liveBus, matchedSourceStop: p.matchedSourceStop, matchedEta: dynamicMatchedEta };
+      });
     });
   }, [buses]);
 
@@ -350,12 +370,17 @@ const UserDashboard = () => {
                         <span className="bus-stat-val">{bus.seatsAvailable}/{bus.capacity}</span>
                         <span className="bus-stat-lbl">Seats</span>
                       </div>
-                      {bus.eta != null && (
+                      {bus.matchedEta != null ? (
+                        <div className="bus-stat" title={`ETA to ${bus.matchedSourceStop?.name}`}>
+                          <span className="bus-stat-val" style={{ color: "#6366f1" }}>{bus.matchedEta}m</span>
+                          <span className="bus-stat-lbl">ETA to Src</span>
+                        </div>
+                      ) : bus.eta != null ? (
                         <div className="bus-stat">
                           <span className="bus-stat-val" style={{ color: "#6366f1" }}>{bus.eta}m</span>
                           <span className="bus-stat-lbl">ETA</span>
                         </div>
-                      )}
+                      ) : null}
                       {bus.speed != null && (
                         <div className="bus-stat">
                           <span className="bus-stat-val">{Math.round(bus.speed)}</span>

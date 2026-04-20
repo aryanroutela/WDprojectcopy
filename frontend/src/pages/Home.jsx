@@ -62,7 +62,7 @@ const Home = () => {
             {t('home.title')} <span>{t('home.titleHighlight')}</span>
           </h1>
           <p>{t('home.subtitle')}</p>
-          <Link to="/signup" className="btn btn-primary" style={{ display: "inline-flex" }}>
+          <Link to="/user-dashboard" className="btn btn-primary" style={{ display: "inline-flex" }}>
             {t('home.getStarted')}
           </Link>
 

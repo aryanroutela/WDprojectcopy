@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { io } from "socket.io-client";
 import axios from "axios";
 
@@ -119,7 +119,7 @@ const useLiveBuses = ({ userId, role = "user" } = {}) => {
     socketRef.current?.emit("user:untrackBus", { busId });
   }, []);
 
-  const buses = Object.values(busMap);
+  const buses = useMemo(() => Object.values(busMap), [busMap]);
 
   return { buses, busMap, connected, loading, socketRef, trackBus, untrackBus };
 };
