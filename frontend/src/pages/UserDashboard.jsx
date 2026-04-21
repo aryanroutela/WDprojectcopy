@@ -28,6 +28,7 @@ const UserDashboard = () => {
   const [showComplaint, setShowComplaint] = useState(false);
   const [complaint, setComplaint] = useState({ busNumber: "", description: "", rating: 3 });
   const [submitting, setSubmitting] = useState(false);
+  const [activeRouteFilter, setActiveRouteFilter] = useState("All");
 
   const haversineDistance = (lat1, lng1, lat2, lng2) => {
     if (!lat1 || !lng1 || !lat2 || !lng2) return Infinity;
@@ -44,7 +45,6 @@ const UserDashboard = () => {
       return buses.filter((b) => prevMap.has(b._id)).map((liveBus) => {
         const p = prevMap.get(liveBus._id);
         let dynamicMatchedEta = p.matchedEta;
-        
         if (liveBus.currentLocation?.latitude && p.matchedSourceStop?.latitude) {
           const dist = haversineDistance(
             liveBus.currentLocation.latitude, liveBus.currentLocation.longitude,
@@ -53,7 +53,6 @@ const UserDashboard = () => {
           const speedFactor = liveBus.speed > 2 ? liveBus.speed : 30;
           dynamicMatchedEta = Math.ceil((dist / speedFactor) * 60);
         }
-
         return { ...liveBus, matchedSourceStop: p.matchedSourceStop, matchedEta: dynamicMatchedEta };
       });
     });
@@ -128,67 +127,92 @@ const UserDashboard = () => {
   const getStatusLabel = (s) =>
     s === "green" ? "Available" : s === "yellow" ? "Filling Up" : "Full";
   const getStatusColor = (s) =>
-    s === "green" ? "#10b981" : s === "yellow" ? "#f59e0b" : "#ef4444";
+    s === "green" ? "var(--green)" : s === "yellow" ? "var(--yellow)" : "var(--red)";
 
   // Merge live data into selected bus
   const liveBusData = selectedBus
     ? buses.find((b) => b._id === selectedBus._id) || selectedBus
     : null;
 
+  // Smart UX message
+  const getSmartMessage = () => {
+    if (!liveBusData) return null;
+    const eta = liveBusData.matchedEta ?? liveBusData.eta;
+    if (eta != null && eta <= 3) return { type: "arriving", text: "🚨 Bus arriving soon — head to the stop!" };
+    if (eta != null && eta <= 10) return { type: "next", text: `⏱ Next bus in ${eta} mins — you have time` };
+    return null;
+  };
+  const smartMsg = getSmartMessage();
+
   if (loading)
     return (
       <div className="loading-page">
         <div className="spinner" />
-        <p>Loading live bus data...</p>
+        <p className="loading-text">Loading live bus data...</p>
       </div>
     );
 
   return (
     <div className="page">
-      {/* ── Header ───────────────────────────────────────────────── */}
+      {/* ── Header ──────────────────────────────────────────────── */}
       <div className="dash-header">
-        <div className="container flex-between" style={{ flexWrap: "wrap", gap: 12 }}>
-          <div>
-            <h1>👤 Hi, {user?.firstName || "Passenger"}</h1>
-            <p>
-              Live tracking &nbsp;·&nbsp; Smart search &nbsp;·&nbsp; ETA updates
-              {connected && (
-                <span className="badge badge-green" style={{ marginLeft: 8 }}>
-                  <span className="live-dot" /> Connected
-                </span>
-              )}
-            </p>
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn btn-outline btn-sm" onClick={getUserLocation} title="Use my location">
-              📍 My Location
-            </button>
-            <button className="btn btn-outline btn-sm" onClick={() => setShowComplaint(true)}>
-              🛑 Complaint
-            </button>
+        <div className="container">
+          <div className="dash-header-inner">
+            <div>
+              <h1>
+                👤 Hi, {user?.firstName || "Passenger"}
+                {connected && (
+                  <span className="live-badge" style={{ marginLeft: 12, fontSize: 11, verticalAlign: "middle" }}>
+                    <span className="live-dot" style={{ width: 6, height: 6 }} /> Live
+                  </span>
+                )}
+              </h1>
+              <p>Live tracking · Smart search · Real-time ETAs</p>
+            </div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={getUserLocation}
+                id="user-get-location"
+                title="Use my location"
+              >
+                📍 My Location
+              </button>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => setShowComplaint(true)}
+                id="user-file-complaint"
+              >
+                🛑 Complaint
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
       {/* ── Stats Bar ────────────────────────────────────────────── */}
-      <div className="dash-stats container">
+      <div className="dash-stats anim-stagger">
         <div className="stat-card">
+          <div className="stat-card-icon">🚌</div>
           <div className="stat-card-num">{buses.length}</div>
           <div className="stat-card-label">Total Buses</div>
         </div>
         <div className="stat-card">
-          <div className="stat-card-num" style={{ color: "#10b981" }}>
+          <div className="stat-card-icon">🟢</div>
+          <div className="stat-card-num" style={{ color: "var(--green)" }}>
             {buses.filter((b) => b.status === "active" || b.busStatus === "green").length}
           </div>
           <div className="stat-card-label">Active Now</div>
         </div>
         <div className="stat-card">
+          <div className="stat-card-icon">🗺️</div>
           <div className="stat-card-num">{routes.length}</div>
           <div className="stat-card-label">Routes</div>
         </div>
         <div className="stat-card">
-          <div className="stat-card-num" style={{ color: connected ? "#10b981" : "#ef4444" }}>
-            <span className="live-dot" style={{ background: connected ? "#10b981" : "#ef4444" }} />
+          <div className="stat-card-icon">{connected ? "📡" : "⚠️"}</div>
+          <div className="stat-card-num" style={{ color: connected ? "var(--green)" : "var(--red)", fontSize: 18 }}>
+            <span className="live-dot" style={{ background: connected ? "var(--green)" : "var(--red)" }} />
             {connected ? " Live" : " Offline"}
           </div>
           <div className="stat-card-label">Tracking</div>
@@ -196,65 +220,87 @@ const UserDashboard = () => {
       </div>
 
       {/* ── Smart Search ─────────────────────────────────────────── */}
-      <div className="dash-content">
+      <div className="dash-content" style={{ paddingBottom: 0 }}>
         <SmartSearch onResults={handleSmartResults} allBuses={buses} />
       </div>
 
-      {/* ── Route Chips ──────────────────────────────────────────── */}
+      {/* ── Route Filter Chips ────────────────────────────────────── */}
       {routes.length > 0 && (
-        <div style={{ padding: "0 20px 12px", display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <span
-            className="chip active"
-            onClick={() => { setFilteredBuses(buses); setSelectedBus(null); }}
-          >
-            All
-          </span>
-          {routes.map((r) => (
+        <div style={{ padding: "0 20px 16px" }}>
+          <div className="chips-row">
             <span
-              key={r._id || r}
-              className="chip"
-              onClick={() => {
-                const name = r.routeName || r;
-                setFilteredBuses(buses.filter((b) => b.routeName === name));
-                setSelectedBus(null);
-              }}
+              className={`chip ${activeRouteFilter === "All" ? "active" : ""}`}
+              id="filter-all"
+              onClick={() => { setActiveRouteFilter("All"); setFilteredBuses(buses); setSelectedBus(null); }}
             >
-              {r.routeName || r}
+              All
             </span>
-          ))}
+            {routes.map((r) => {
+              const name = r.routeName || r;
+              return (
+                <span
+                  key={r._id || r}
+                  className={`chip ${activeRouteFilter === name ? "active" : ""}`}
+                  id={`filter-route-${typeof r === "string" ? r : r._id}`}
+                  onClick={() => {
+                    setActiveRouteFilter(name);
+                    setFilteredBuses(buses.filter((b) => b.routeName === name));
+                    setSelectedBus(null);
+                  }}
+                >
+                  {name}
+                </span>
+              );
+            })}
+          </div>
         </div>
       )}
 
       {/* ── Tab Switch ───────────────────────────────────────────── */}
-      <div className="container" style={{ marginBottom: 0 }}>
+      <div className="dash-content" style={{ paddingTop: 0, paddingBottom: 0 }}>
         <div className="tab-bar">
           <button
+            id="tab-map"
             className={`tab-btn ${activeTab === "map" ? "tab-btn-active" : ""}`}
             onClick={() => setActiveTab("map")}
           >
             🗺️ Live Map
           </button>
           <button
+            id="tab-list"
             className={`tab-btn ${activeTab === "list" ? "tab-btn-active" : ""}`}
             onClick={() => setActiveTab("list")}
           >
-            🚌 Bus List ({filteredBuses.length})
+            🚌 Buses ({filteredBuses.length})
           </button>
         </div>
       </div>
 
+      {/* ── Smart UX Message ─────────────────────────────────────── */}
+      {smartMsg && (
+        <div className="dash-content" style={{ paddingTop: 0, paddingBottom: 0 }}>
+          <div className={`smart-message ${
+            smartMsg.type === "arriving" ? "smart-message-arriving" : "smart-message-next"
+          }`}>
+            {smartMsg.text}
+          </div>
+        </div>
+      )}
+
       {/* ── Map View ─────────────────────────────────────────────── */}
       {activeTab === "map" && (
         <div className="dash-content">
-          <Suspense fallback={<div className="map-loading">Loading map...</div>}>
-            <LiveMap
-              buses={buses}
-              selectedBus={liveBusData}
-              userLocation={userLocation}
-              followBus={followBus}
-              height="480px"
-            />
-          </Suspense>
+          <div className="map-wrap">
+            <Suspense fallback={<div className="map-loading"><div className="spinner spinner-primary" /><p>Loading map...</p></div>}>
+              <LiveMap
+                buses={buses}
+                selectedBus={liveBusData}
+                userLocation={userLocation}
+                followBus={followBus}
+                height="480px"
+              />
+            </Suspense>
+          </div>
 
           {/* Selected bus detail panel */}
           {liveBusData && (
@@ -264,14 +310,21 @@ const UserDashboard = () => {
                   <h3>🚌 Bus {liveBusData.busNumber}</h3>
                   <p>{liveBusData.routeName}</p>
                 </div>
-                <div style={{ display: "flex", gap: 8 }}>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <button
-                    className={`btn btn-sm ${followBus ? "btn-primary" : "btn-outline"}`}
+                    id="btn-follow-bus"
+                    className={`btn btn-sm ${followBus ? "btn-accent" : "btn-outline"}`}
                     onClick={() => setFollowBus(!followBus)}
                   >
                     {followBus ? "📡 Following" : "👁 Follow"}
                   </button>
-                  <button className="btn btn-sm btn-outline" onClick={handleCloseBus}>✕</button>
+                  <button
+                    id="btn-close-bus"
+                    className="btn btn-sm btn-ghost btn-icon-only"
+                    onClick={handleCloseBus}
+                  >
+                    ✕
+                  </button>
                 </div>
               </div>
 
@@ -300,9 +353,7 @@ const UserDashboard = () => {
                 {/* Stats grid */}
                 <div className="bus-detail-stats">
                   <div className="bus-detail-stat">
-                    <span className="bus-detail-stat-val">
-                      {liveBusData.seatsAvailable}/{liveBusData.capacity}
-                    </span>
+                    <span className="bus-detail-stat-val">{liveBusData.seatsAvailable}/{liveBusData.capacity}</span>
                     <span className="bus-detail-stat-lbl">Seats</span>
                   </div>
                   <div className="bus-detail-stat">
@@ -326,22 +377,40 @@ const UserDashboard = () => {
       {activeTab === "list" && (
         <div className="dash-content">
           {filteredBuses.length > 0 ? (
-            <div className="card-grid">
+            <div className="card-grid anim-stagger">
               {filteredBuses.map((bus) => {
                 const st = bus.busStatus || bus.status;
                 const loc = bus.currentLocation || bus.location;
+                const eta = bus.matchedEta ?? bus.eta;
+
                 return (
                   <div
                     key={bus._id}
+                    id={`bus-list-card-${bus.busNumber}`}
                     className={`card bus-card ${selectedBus?._id === bus._id ? "bus-card-selected" : ""}`}
                     onClick={() => handleSelectBus(bus)}
                   >
                     <div className="bus-card-header">
                       <span className="bus-number">{bus.busNumber}</span>
-                      <span className={`badge ${getStatusClass(st)}`}>{getStatusLabel(st)}</span>
+                      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                        {eta != null && (
+                          <span style={{
+                            background: "linear-gradient(135deg, var(--accent), var(--accent-light))",
+                            color: "#fff",
+                            fontSize: 11,
+                            fontWeight: 700,
+                            padding: "3px 9px",
+                            borderRadius: "var(--radius-full)",
+                          }}>
+                            ⏱ {eta}m
+                          </span>
+                        )}
+                        <span className={`badge ${getStatusClass(st)}`}>{getStatusLabel(st)}</span>
+                      </div>
                     </div>
+
                     <p className="bus-route">📍 {bus.routeName}</p>
-                    <p className="text-sm text-muted" style={{ marginBottom: 8 }}>
+                    <p className="text-sm text-muted" style={{ marginBottom: 10 }}>
                       {bus.source || bus.checkpoints?.[0]?.name || "—"} →{" "}
                       {bus.destination || bus.checkpoints?.[bus.checkpoints.length - 1]?.name || "—"}
                     </p>
@@ -370,17 +439,10 @@ const UserDashboard = () => {
                         <span className="bus-stat-val">{bus.seatsAvailable}/{bus.capacity}</span>
                         <span className="bus-stat-lbl">Seats</span>
                       </div>
-                      {bus.matchedEta != null ? (
-                        <div className="bus-stat" title={`ETA to ${bus.matchedSourceStop?.name}`}>
-                          <span className="bus-stat-val" style={{ color: "#6366f1" }}>{bus.matchedEta}m</span>
-                          <span className="bus-stat-lbl">ETA to Src</span>
-                        </div>
-                      ) : bus.eta != null ? (
-                        <div className="bus-stat">
-                          <span className="bus-stat-val" style={{ color: "#6366f1" }}>{bus.eta}m</span>
-                          <span className="bus-stat-lbl">ETA</span>
-                        </div>
-                      ) : null}
+                      <div className="bus-stat">
+                        <span className="bus-stat-val">{bus.occupancy || 0}%</span>
+                        <span className="bus-stat-lbl">Full</span>
+                      </div>
                       {bus.speed != null && (
                         <div className="bus-stat">
                           <span className="bus-stat-val">{Math.round(bus.speed)}</span>
@@ -392,22 +454,18 @@ const UserDashboard = () => {
                     <div className="progress">
                       <div
                         className="progress-fill"
-                        style={{
-                          width: `${bus.occupancy || 0}%`,
-                          background: getStatusColor(st),
-                        }}
+                        style={{ width: `${bus.occupancy || 0}%`, background: getStatusColor(st) }}
                       />
                     </div>
 
                     {loc?.latitude && (
-                      <p className="text-sm text-muted mt-8">
-                        <span className="live-dot" /> Live &nbsp;·&nbsp;
-                        {loc.latitude.toFixed(4)}, {loc.longitude.toFixed(4)}
+                      <p className="text-sm text-muted mt-8" style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                        <span className="live-dot" style={{ width: 6, height: 6 }} /> Live
                       </p>
                     )}
 
                     {bus.nextCheckpointName && (
-                      <p className="text-sm" style={{ color: "#6366f1", marginTop: 4 }}>
+                      <p className="text-sm mt-4" style={{ color: "var(--accent)", fontWeight: 600 }}>
                         🎯 Next: {bus.nextCheckpointName}
                       </p>
                     )}
@@ -420,7 +478,8 @@ const UserDashboard = () => {
           ) : (
             <div className="empty-state">
               <div className="empty-state-icon">🚌</div>
-              <p className="empty-state-text">No buses match your search</p>
+              <div className="empty-state-title">No buses found</div>
+              <p className="empty-state-text">Try adjusting your search or filters</p>
             </div>
           )}
         </div>
@@ -432,10 +491,11 @@ const UserDashboard = () => {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <button className="modal-close" onClick={() => setShowComplaint(false)}>✕</button>
             <h3 className="modal-title">🛑 Submit Complaint</h3>
-            <form onSubmit={handleSubmitComplaint}>
+            <form onSubmit={handleSubmitComplaint} id="complaint-form">
               <div className="form-group">
                 <label className="form-label">Bus Number *</label>
                 <input
+                  id="complaint-bus-number"
                   className="form-input"
                   placeholder="e.g. BUS-101"
                   value={complaint.busNumber}
@@ -446,12 +506,13 @@ const UserDashboard = () => {
               <div className="form-group">
                 <label className="form-label">Description *</label>
                 <textarea
+                  id="complaint-description"
                   className="form-input"
-                  placeholder="Describe the issue..."
+                  placeholder="Describe the issue in detail..."
                   value={complaint.description}
                   onChange={(e) => setComplaint({ ...complaint, description: e.target.value })}
                   required
-                  style={{ minHeight: 80, resize: "vertical" }}
+                  style={{ minHeight: 90, resize: "vertical" }}
                 />
               </div>
               <div className="form-group">
@@ -460,14 +521,23 @@ const UserDashboard = () => {
                   {[1, 2, 3, 4, 5].map((s) => (
                     <span
                       key={s}
+                      id={`star-${s}`}
                       className={`star ${s <= complaint.rating ? "active" : ""}`}
                       onClick={() => setComplaint({ ...complaint, rating: s })}
                     >★</span>
                   ))}
                 </div>
               </div>
-              <button className="btn btn-primary btn-block" disabled={submitting}>
-                {submitting ? "Submitting..." : "Submit Complaint"}
+              <button
+                id="complaint-submit"
+                className="btn btn-primary btn-block"
+                disabled={submitting}
+              >
+                {submitting ? (
+                  <span style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "center" }}>
+                    <span className="spinner-sm" /> Submitting...
+                  </span>
+                ) : "Submit Complaint"}
               </button>
             </form>
           </div>

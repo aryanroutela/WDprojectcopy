@@ -32,11 +32,37 @@ const GlobalLayout = () => (
   </>
 );
 
+// App-level full-screen loader
+const AppLoader = () => (
+  <div style={{
+    position: "fixed", inset: 0,
+    display: "flex", flexDirection: "column",
+    alignItems: "center", justifyContent: "center",
+    background: "var(--bg)",
+    gap: 16, zIndex: 9999,
+  }}>
+    <div style={{
+      width: 52, height: 52,
+      background: "linear-gradient(135deg, var(--primary), var(--primary-light))",
+      borderRadius: 14,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontSize: 26,
+      boxShadow: "0 8px 24px var(--primary-glow)",
+      animation: "pulse-dot 1.5s infinite",
+    }}>
+      🚍
+    </div>
+    <p style={{ fontSize: 14, color: "var(--text-muted)", fontWeight: 500 }}>
+      Loading RouteFlow...
+    </p>
+  </div>
+);
+
 function App() {
   const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
-    return <div>Loading...</div>; // can create a proper loader
+    return <AppLoader />;
   }
 
   return (
@@ -87,12 +113,14 @@ function App() {
         position="top-right"
         autoClose={3000}
         hideProgressBar={false}
-        newestOnTop={false}
+        newestOnTop
         closeOnClick
         rtl={false}
         pauseOnFocusLoss
         draggable
         pauseOnHover
+        theme="colored"
+        style={{ zIndex: 9999 }}
       />
     </BrowserRouter>
   );

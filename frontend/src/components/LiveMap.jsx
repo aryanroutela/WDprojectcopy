@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect } from "react";
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -11,7 +11,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
 });
 
-// ── Custom Icons ────────────────────────────────────────────────
+// ── Custom Icons ─────────────────────────────────────────────────
 
 const makeSvgIcon = (svg, size = [36, 36], anchor = [18, 18]) =>
   new L.DivIcon({
@@ -19,44 +19,61 @@ const makeSvgIcon = (svg, size = [36, 36], anchor = [18, 18]) =>
     className: "",
     iconSize: size,
     iconAnchor: anchor,
-    popupAnchor: [0, -20],
+    popupAnchor: [0, -22],
   });
 
-const busIconSvg = (color = "#6366f1") => `
+const busIconSvg = (color = "#6366f1", isSelected = false) => {
+  const size = isSelected ? 44 : 36;
+  const glowColor = isSelected
+    ? "rgba(99,102,241,0.9)"
+    : color === "#10b981"
+    ? "rgba(16,185,129,0.6)"
+    : color === "#f59e0b"
+    ? "rgba(245,158,11,0.6)"
+    : "rgba(239,68,68,0.6)";
+
+  return `
   <div style="
-    width:36px;height:36px;border-radius:50%;
-    background:${color};border:3px solid #fff;
-    box-shadow:0 2px 10px rgba(0,0,0,0.4);
+    width:${size}px;height:${size}px;border-radius:50%;
+    background:${color};
+    border:${isSelected ? "3px" : "2px"} solid #fff;
+    box-shadow:0 2px 12px ${glowColor};
     display:flex;align-items:center;justify-content:center;
-    font-size:18px;line-height:36px;
-    animation: busGlow 2s ease-in-out infinite alternate;
+    font-size:${isSelected ? 22 : 18}px;
+    animation:busGlow_${isSelected ? "sel" : "def"} 2s ease-in-out infinite alternate;
+    transition:all 0.3s;
   ">🚌</div>
   <style>
-    @keyframes busGlow {
-      from { box-shadow: 0 0 6px rgba(99,102,241,0.4); }
-      to   { box-shadow: 0 0 18px rgba(99,102,241,0.9); }
+    @keyframes busGlow_sel {
+      from { box-shadow: 0 0 8px ${glowColor}; }
+      to   { box-shadow: 0 0 24px ${glowColor}, 0 0 8px rgba(255,255,255,0.3); }
+    }
+    @keyframes busGlow_def {
+      from { box-shadow: 0 2px 6px ${glowColor}; }
+      to   { box-shadow: 0 2px 14px ${glowColor}; }
     }
   </style>`;
+};
 
 const passedStopIcon = makeSvgIcon(
   `<div style="width:14px;height:14px;border-radius:50%;background:#10b981;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.3)"></div>`,
   [14, 14], [7, 7]
 );
 const nextStopIcon = makeSvgIcon(
-  `<div style="width:18px;height:18px;border-radius:50%;background:#f59e0b;border:3px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,0.4);animation:pulse 1.2s infinite"></div>
-   <style>@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.3)}}</style>`,
-  [18, 18], [9, 9]
+  `<div style="width:20px;height:20px;border-radius:50%;background:#f59e0b;border:3px solid #fff;box-shadow:0 1px 8px rgba(245,158,11,0.7);animation:nextPulse 1.2s infinite"></div>
+   <style>@keyframes nextPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.25)}}</style>`,
+  [20, 20], [10, 10]
 );
 const upcomingStopIcon = makeSvgIcon(
-  `<div style="width:12px;height:12px;border-radius:50%;background:#94a3b8;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.2)"></div>`,
-  [12, 12], [6, 6]
+  `<div style="width:10px;height:10px;border-radius:50%;background:#94a3b8;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.2)"></div>`,
+  [10, 10], [5, 5]
 );
 const userIcon = makeSvgIcon(
-  `<div style="width:22px;height:22px;border-radius:50%;background:#3b82f6;border:3px solid #fff;box-shadow:0 2px 10px rgba(59,130,246,0.6);display:flex;align-items:center;justify-content:center;font-size:11px">📍</div>`,
-  [22, 22], [11, 11]
+  `<div style="width:24px;height:24px;border-radius:50%;background:#3b82f6;border:3px solid #fff;box-shadow:0 2px 12px rgba(59,130,246,0.7);display:flex;align-items:center;justify-content:center;font-size:12px">📍</div>`,
+  [24, 24], [12, 12]
 );
 
-// ── Pan to bus helper ────────────────────────────────────────────
+// ── Pan-to-bus helper ────────────────────────────────────────────
 const FlyToLocation = ({ lat, lng }) => {
   const map = useMap();
   useEffect(() => {
@@ -64,6 +81,34 @@ const FlyToLocation = ({ lat, lng }) => {
   }, [lat, lng, map]);
   return null;
 };
+
+// ── Shared popup content styles ──────────────────────────────────
+const popupStyle = {
+  fontFamily: "Inter, -apple-system, sans-serif",
+  minWidth: 180,
+  lineHeight: 1.5,
+};
+const popupTitle = {
+  fontWeight: 700,
+  fontSize: 15,
+  marginBottom: 6,
+  color: "#0f172a",
+};
+const popupRow = {
+  fontSize: 12,
+  color: "#475569",
+  marginBottom: 2,
+};
+const popupBadge = (bg, color) => ({
+  marginTop: 8,
+  padding: "2px 10px",
+  borderRadius: 99,
+  fontSize: 11,
+  fontWeight: 700,
+  display: "inline-block",
+  background: bg,
+  color,
+});
 
 // ── Main LiveMap component ───────────────────────────────────────
 /**
@@ -82,16 +127,13 @@ const LiveMap = ({
   followBus = false,
   height = "450px",
 }) => {
-  // Default center: India (Bangalore) — will shift after real data arrives
-  const defaultCenter = [12.9716, 77.5946];
+  const defaultCenter = [12.9716, 77.5946]; // Bangalore fallback
 
-  // Get all buses that have a valid location
   const activeBuses = buses.filter((b) => {
     const loc = b.currentLocation || b.location;
     return loc?.latitude != null && loc?.longitude != null;
   });
 
-  // Build route polyline from selected bus checkpoints
   const routePolyline =
     selectedBus?.checkpoints
       ?.filter((cp) => cp.latitude != null && cp.longitude != null)
@@ -124,7 +166,7 @@ const LiveMap = ({
   };
 
   return (
-    <div style={{ borderRadius: 16, overflow: "hidden", boxShadow: "0 4px 24px rgba(0,0,0,0.18)", height }}>
+    <div style={{ height, width: "100%" }}>
       <MapContainer
         center={mapCenter}
         zoom={13}
@@ -132,9 +174,11 @@ const LiveMap = ({
         zoomControl={true}
         attributionControl={false}
       >
+        {/* Light map tiles */}
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; OpenStreetMap contributors'
+          attribution="&copy; OpenStreetMap contributors"
+          maxZoom={19}
         />
 
         {/* Pan to selected bus */}
@@ -150,8 +194,11 @@ const LiveMap = ({
             icon={userIcon}
           >
             <Popup>
-              <div style={{ fontFamily: "Inter, sans-serif", minWidth: 120 }}>
-                <strong>📍 You are here</strong>
+              <div style={popupStyle}>
+                <div style={popupTitle}>📍 You are here</div>
+                <div style={popupRow}>
+                  {userLocation.latitude.toFixed(5)}, {userLocation.longitude.toFixed(5)}
+                </div>
               </div>
             </Popup>
           </Marker>
@@ -160,51 +207,54 @@ const LiveMap = ({
         {/* Route polyline for selected bus */}
         {routePolyline.length >= 2 && (
           <>
-            {/* Shadow line */}
+            {/* Shadow */}
             <Polyline
               positions={routePolyline}
-              pathOptions={{ color: "#000", weight: 6, opacity: 0.12, dashArray: null }}
+              pathOptions={{ color: "#000", weight: 7, opacity: 0.08 }}
             />
-            {/* Actual route line */}
+            {/* Main route */}
             <Polyline
               positions={routePolyline}
-              pathOptions={{ color: "#6366f1", weight: 4, opacity: 0.85, dashArray: "8 4" }}
+              pathOptions={{ color: "#6366f1", weight: 4, opacity: 0.85, dashArray: "10 6" }}
             />
+            {/* Active portion (up to current checkpoint) */}
+            {selectedBus?.currentCheckpointIdx >= 0 && routePolyline.length > 0 && (
+              <Polyline
+                positions={routePolyline.slice(0, (selectedBus.currentCheckpointIdx ?? 0) + 1)}
+                pathOptions={{ color: "#10b981", weight: 4, opacity: 0.9 }}
+              />
+            )}
           </>
         )}
 
-        {/* Checkpoints for selected bus */}
+        {/* Checkpoints for selected bus (from etaData) */}
         {selectedBus?.etaData?.stopsETA?.map((stop, i) => {
           if (!stop.latitude || !stop.longitude) return null;
           return (
             <Marker
-              key={`cp-${i}`}
+              key={`cp-eta-${i}`}
               position={[stop.latitude, stop.longitude]}
               icon={getStopIcon(stop.status)}
             >
               <Popup>
-                <div style={{ fontFamily: "Inter, sans-serif", minWidth: 150 }}>
-                  <div style={{ fontWeight: 700, marginBottom: 4 }}>
-                    {stop.status === "passed" ? "✅" : stop.status === "next" ? "🟡" : "⚪"}{" "}
+                <div style={popupStyle}>
+                  <div style={popupTitle}>
+                    {stop.status === "passed" ? "✅" : stop.status === "next" ? "🚌" : "⚪"}{" "}
                     {stop.name}
                   </div>
-                  <div style={{ fontSize: 12, color: "#64748b" }}>
-                    Stop #{stop.sequence + 1}
-                    {stop.status !== "passed" && stop.eta != null && (
-                      <> &nbsp;·&nbsp; ETA: <strong>{stop.eta} min</strong></>
-                    )}
-                    {stop.status !== "passed" && stop.distanceKm != null && (
-                      <> &nbsp;·&nbsp; {stop.distanceKm} km</>
-                    )}
-                  </div>
-                  <div style={{
-                    marginTop: 6, padding: "2px 8px", borderRadius: 99, fontSize: 11,
-                    display: "inline-block",
-                    background: stop.status === "passed" ? "#d1fae5"
-                      : stop.status === "next" ? "#fef3c7" : "#f1f5f9",
-                    color: stop.status === "passed" ? "#059669"
-                      : stop.status === "next" ? "#d97706" : "#64748b",
-                  }}>
+                  <div style={popupRow}>Stop #{stop.sequence + 1}</div>
+                  {stop.status !== "passed" && stop.eta != null && (
+                    <div style={{ ...popupRow, color: "#6366f1", fontWeight: 600 }}>
+                      ⏱ ETA: {stop.eta} min
+                    </div>
+                  )}
+                  {stop.distanceKm != null && (
+                    <div style={popupRow}>📏 {stop.distanceKm} km away</div>
+                  )}
+                  <div style={popupBadge(
+                    stop.status === "passed" ? "#d1fae5" : stop.status === "next" ? "#fef3c7" : "#f1f5f9",
+                    stop.status === "passed" ? "#059669" : stop.status === "next" ? "#d97706" : "#64748b"
+                  )}>
                     {stop.status === "passed" ? "Passed" : stop.status === "next" ? "Next Stop" : "Upcoming"}
                   </div>
                 </div>
@@ -213,15 +263,29 @@ const LiveMap = ({
           );
         })}
 
-        {/* Checkpoints for selected bus (when etaData not available but checkpoints exist) */}
+        {/* Fallback: checkpoints when no etaData */}
         {!selectedBus?.etaData && selectedBus?.checkpoints?.map((cp, i) => {
           if (!cp.latitude || !cp.longitude) return null;
+          const isPassed = i <= (selectedBus?.currentCheckpointIdx ?? -1);
+          const isNext = i === (selectedBus?.currentCheckpointIdx ?? -1) + 1;
           return (
-            <Marker key={`cp-plain-${i}`} position={[cp.latitude, cp.longitude]} icon={upcomingStopIcon}>
+            <Marker
+              key={`cp-plain-${i}`}
+              position={[cp.latitude, cp.longitude]}
+              icon={isPassed ? passedStopIcon : isNext ? nextStopIcon : upcomingStopIcon}
+            >
               <Popup>
-                <div style={{ fontFamily: "Inter, sans-serif" }}>
-                  <strong>{cp.name}</strong>
-                  <div style={{ fontSize: 12, color: "#64748b" }}>Stop #{cp.sequence + 1}</div>
+                <div style={popupStyle}>
+                  <div style={popupTitle}>
+                    {isPassed ? "✅" : isNext ? "🚌" : "⚪"} {cp.name}
+                  </div>
+                  <div style={popupRow}>Stop #{cp.sequence + 1}</div>
+                  <div style={popupBadge(
+                    isPassed ? "#d1fae5" : isNext ? "#fef3c7" : "#f1f5f9",
+                    isPassed ? "#059669" : isNext ? "#d97706" : "#64748b"
+                  )}>
+                    {isPassed ? "Passed" : isNext ? "Next Stop" : "Upcoming"}
+                  </div>
                 </div>
               </Popup>
             </Marker>
@@ -234,38 +298,43 @@ const LiveMap = ({
           if (!loc?.latitude) return null;
           const isSelected = selectedBus?._id === bus._id;
           const color = isSelected ? "#6366f1" : getBusColor(bus.busStatus || bus.status);
+          const iconSize = isSelected ? [44, 44] : [36, 36];
+          const iconAnchor = isSelected ? [22, 22] : [18, 18];
 
           return (
             <Marker
               key={bus._id}
               position={[loc.latitude, loc.longitude]}
-              icon={makeSvgIcon(busIconSvg(color), [36, 36], [18, 18])}
+              icon={makeSvgIcon(busIconSvg(color, isSelected), iconSize, iconAnchor)}
             >
               <Popup>
-                <div style={{ fontFamily: "Inter, sans-serif", minWidth: 180 }}>
-                  <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>
-                    🚌 Bus {bus.busNumber}
-                  </div>
-                  <div style={{ fontSize: 13, color: "#334155", marginBottom: 4 }}>
-                    📍 {bus.routeName}
-                  </div>
+                <div style={popupStyle}>
+                  <div style={popupTitle}>🚌 Bus {bus.busNumber}</div>
+                  <div style={popupRow}>📍 {bus.routeName}</div>
                   {bus.eta != null && (
-                    <div style={{ fontSize: 12, color: "#6366f1", fontWeight: 600 }}>
+                    <div style={{ ...popupRow, color: "#6366f1", fontWeight: 600 }}>
                       ⏱ ETA to next stop: {bus.eta} min
                     </div>
                   )}
                   {bus.nextCheckpointName && (
-                    <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
-                      Next: {bus.nextCheckpointName}
-                    </div>
+                    <div style={popupRow}>🎯 Next: {bus.nextCheckpointName}</div>
                   )}
                   {bus.seatsAvailable != null && (
-                    <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
-                      💺 {bus.seatsAvailable}/{bus.capacity} seats
+                    <div style={popupRow}>
+                      💺 {bus.seatsAvailable}/{bus.capacity} seats available
                     </div>
                   )}
-                  <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>
+                  {bus.speed != null && (
+                    <div style={popupRow}>🏎 {Math.round(bus.speed)} km/h</div>
+                  )}
+                  <div style={{ ...popupRow, marginTop: 4, fontSize: 11, color: "#94a3b8" }}>
                     🌐 {loc.latitude?.toFixed(4)}, {loc.longitude?.toFixed(4)}
+                  </div>
+                  <div style={popupBadge(
+                    isSelected ? "#eef2ff" : "#f0fdf4",
+                    isSelected ? "#4338ca" : "#059669"
+                  )}>
+                    {isSelected ? "📡 Tracking" : "📍 On Route"}
                   </div>
                 </div>
               </Popup>

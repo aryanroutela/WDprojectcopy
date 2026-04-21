@@ -15,6 +15,7 @@ const LiveTrackingPage = () => {
   const [selectedBus, setSelectedBus] = useState(null);
   const [filteredBuses, setFilteredBuses] = useState([]);
   const [followBus, setFollowBus] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(true);
 
   const haversineDistance = (lat1, lng1, lat2, lng2) => {
     if (!lat1 || !lng1 || !lat2 || !lng2) return Infinity;
@@ -30,7 +31,6 @@ const LiveTrackingPage = () => {
       return buses.filter((b) => prevMap.has(b._id)).map((liveBus) => {
         const p = prevMap.get(liveBus._id);
         let dynamicMatchedEta = p.matchedEta;
-        
         if (liveBus.currentLocation?.latitude && p.matchedSourceStop?.latitude) {
           const dist = haversineDistance(
             liveBus.currentLocation.latitude, liveBus.currentLocation.longitude,
@@ -39,7 +39,6 @@ const LiveTrackingPage = () => {
           const speedFactor = liveBus.speed > 2 ? liveBus.speed : 30;
           dynamicMatchedEta = Math.ceil((dist / speedFactor) * 60);
         }
-
         return { ...liveBus, matchedSourceStop: p.matchedSourceStop, matchedEta: dynamicMatchedEta };
       });
     });
@@ -82,19 +81,26 @@ const LiveTrackingPage = () => {
                 <span className="tracking-stat-lbl">Total</span>
               </div>
               <div className="tracking-stat">
-                <span className="tracking-stat-num" style={{ color: "#10b981" }}>{activeBuses.length}</span>
+                <span className="tracking-stat-num" style={{ color: "#86efac" }}>{activeBuses.length}</span>
                 <span className="tracking-stat-lbl">On Map</span>
               </div>
-              <div className={`tracking-stat tracking-status-${connected ? "live" : "off"}`}>
-                <span className="live-dot" style={{ background: connected ? "#10b981" : "#ef4444" }} />
-                <span className="tracking-stat-lbl">{connected ? "Live" : "Offline"}</span>
+              <div className="tracking-stat">
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <span
+                    className="live-dot"
+                    style={{ background: connected ? "#86efac" : "#fca5a5", width: 10, height: 10 }}
+                  />
+                  <span className="tracking-stat-lbl" style={{ fontSize: 13 }}>
+                    {connected ? "Live" : "Offline"}
+                  </span>
+                </span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* ── Smart Search ─────────────────────────────────────────── */}
+      {/* ── Smart Search ──────────────────────────────────────────── */}
       <div className="container" style={{ marginTop: 20 }}>
         <SmartSearch
           onResults={(results) => {
@@ -104,24 +110,52 @@ const LiveTrackingPage = () => {
         />
       </div>
 
-      {/* ── Main layout: Map + sidebar ───────────────────────────── */}
+      {/* ── Main layout: Map + sidebar ─────────────────────────── */}
       <div className="tracking-layout container">
         {/* Map */}
         <div className="tracking-map-col">
           {loading ? (
             <div className="map-loading">
-              <div className="spinner" />
+              <div className="spinner spinner-primary" />
               <p>Connecting to live tracking...</p>
             </div>
           ) : (
-            <Suspense fallback={<div className="map-loading">Loading map...</div>}>
-              <LiveMap
-                buses={displayBuses}
-                selectedBus={liveBus}
-                followBus={followBus}
-                height="520px"
-              />
-            </Suspense>
+            <div className="map-wrap">
+              <Suspense fallback={<div className="map-loading"><div className="spinner spinner-primary" /><p>Loading map...</p></div>}>
+                <LiveMap
+                  buses={displayBuses}
+                  selectedBus={liveBus}
+                  followBus={followBus}
+                  height="520px"
+                />
+              </Suspense>
+            </div>
+          )}
+
+          {/* Mobile: show selected bus info below map */}
+          {liveBus && (
+            <div className="bus-detail-panel" style={{ marginTop: 16 }}>
+              <div className="bus-detail-header">
+                <div>
+                  <h3>🚌 Bus {liveBus.busNumber}</h3>
+                  <p>{liveBus.routeName}</p>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    id="track-follow-btn"
+                    className={`btn btn-sm ${followBus ? "btn-accent" : "btn-outline"}`}
+                    onClick={() => setFollowBus(!followBus)}
+                  >
+                    {followBus ? "📡 Following" : "👁 Follow"}
+                  </button>
+                  <button
+                    id="track-close-btn"
+                    className="btn btn-sm btn-ghost btn-icon-only"
+                    onClick={() => { setSelectedBus(null); setFollowBus(false); }}
+                  >✕</button>
+                </div>
+              </div>
+            </div>
           )}
         </div>
 
@@ -130,21 +164,25 @@ const LiveTrackingPage = () => {
           {/* Selected bus detail */}
           {liveBus ? (
             <div className="tracking-bus-detail">
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <h3 style={{ margin: 0, fontSize: 16 }}>🚌 Bus {liveBus.busNumber}</h3>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>🚌 Bus {liveBus.busNumber}</h3>
                 <div style={{ display: "flex", gap: 6 }}>
                   <button
-                    className={`btn btn-sm ${followBus ? "btn-primary" : "btn-outline"}`}
+                    id="sidebar-follow-btn"
+                    className={`btn btn-sm ${followBus ? "btn-accent" : "btn-outline"}`}
                     onClick={() => setFollowBus(!followBus)}
-                    title="Follow bus on map"
                   >
-                    {followBus ? "📡 Following" : "👁 Follow"}
+                    {followBus ? "📡" : "👁"}
                   </button>
-                  <button className="btn btn-sm btn-outline" onClick={() => { setSelectedBus(null); setFollowBus(false); }}>✕</button>
+                  <button
+                    id="sidebar-close-btn"
+                    className="btn btn-sm btn-ghost btn-icon-only"
+                    onClick={() => { setSelectedBus(null); setFollowBus(false); }}
+                  >✕</button>
                 </div>
               </div>
 
-              <p style={{ fontSize: 13, color: "#64748b", marginBottom: 12 }}>{liveBus.routeName}</p>
+              <p className="text-sm text-muted mb-12">{liveBus.routeName}</p>
 
               {/* ETA */}
               <ETADisplay
@@ -181,8 +219,11 @@ const LiveTrackingPage = () => {
             </div>
           ) : (
             <div className="tracking-no-selection">
-              <div style={{ fontSize: 36 }}>🚌</div>
-              <p>Click a bus on the map or from the list to see live details</p>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>🚌</div>
+              <p style={{ fontWeight: 600, marginBottom: 6, color: "var(--text-secondary)" }}>
+                Select a bus
+              </p>
+              <p>Click a bus on the map or from the list below to see live details</p>
             </div>
           )}
 
@@ -190,38 +231,53 @@ const LiveTrackingPage = () => {
           <div className="tracking-bus-list">
             <div className="tracking-bus-list-header">
               {filteredBuses.length > 0
-                ? `${filteredBuses.length} search result${filteredBuses.length > 1 ? "s" : ""}`
+                ? `${filteredBuses.length} result${filteredBuses.length > 1 ? "s" : ""}`
                 : `${buses.length} bus${buses.length !== 1 ? "es" : ""} on route`}
             </div>
             {displayBuses.map((bus) => {
               const badge = getStatusBadge(bus);
               const loc = bus.currentLocation || bus.location;
               const hasLocation = loc?.latitude != null;
+              const eta = bus.matchedEta ?? bus.eta;
+
               return (
                 <div
                   key={bus._id}
+                  id={`track-bus-${bus.busNumber}`}
                   className={`tracking-bus-item ${selectedBus?._id === bus._id ? "tracking-bus-item-active" : ""}`}
                   onClick={() => { setSelectedBus(bus); setFollowBus(true); }}
                 >
-                  <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ fontWeight: 700 }}>{bus.busNumber}</span>
-                    <span className={`badge ${badge.cls}`}>{badge.label}</span>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+                    <span style={{ fontWeight: 800, fontSize: 15 }}>{bus.busNumber}</span>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      {eta != null && (
+                        <span style={{
+                          background: "var(--accent-muted)", color: "var(--accent)",
+                          fontSize: 11, fontWeight: 700,
+                          padding: "2px 8px", borderRadius: "var(--radius-full)",
+                        }}>
+                          ⏱ {eta}m
+                        </span>
+                      )}
+                      <span className={`badge ${badge.cls}`}>{badge.label}</span>
+                    </div>
                   </div>
-                  <div style={{ fontSize: 12, color: "#64748b", margin: "3px 0" }}>{bus.routeName}</div>
-                  <div style={{ display: "flex", gap: 10, fontSize: 12, flexWrap: "wrap" }}>
-                    {bus.matchedEta != null ? (
-                      <span style={{ color: "#6366f1", fontWeight: 600 }} title={`ETA to ${bus.matchedSourceStop?.name}`}>⏱ {bus.matchedEta}m to Src</span>
-                    ) : bus.eta != null ? (
-                      <span style={{ color: "#6366f1", fontWeight: 600 }}>⏱ {bus.eta}m</span>
-                    ) : null}
+                  <div className="text-sm text-muted">{bus.routeName}</div>
+                  <div style={{ display: "flex", gap: 10, marginTop: 5, flexWrap: "wrap", alignItems: "center" }}>
                     {bus.nextCheckpointName && (
-                      <span style={{ color: "#64748b" }}>🎯 {bus.nextCheckpointName}</span>
+                      <span className="text-xs" style={{ color: "var(--accent)", fontWeight: 600 }}>
+                        🎯 {bus.nextCheckpointName}
+                      </span>
                     )}
-                    {hasLocation && <span className="live-dot" style={{ marginTop: 2 }} />}
+                    {hasLocation && (
+                      <span style={{ display: "flex", alignItems: "center", gap: 4 }} className="text-xs text-muted">
+                        <span className="live-dot" style={{ width: 6, height: 6 }} /> Live
+                      </span>
+                    )}
                   </div>
                   {/* Mini checkpoint progress dots */}
                   {bus.checkpoints?.length > 0 && (
-                    <div className="mini-progress-row" style={{ marginTop: 6 }}>
+                    <div className="mini-progress-row" style={{ marginTop: 8 }}>
                       {bus.checkpoints.map((cp, i) => (
                         <div
                           key={i}
@@ -239,7 +295,8 @@ const LiveTrackingPage = () => {
               );
             })}
             {buses.length === 0 && !loading && (
-              <div style={{ textAlign: "center", color: "#94a3b8", padding: 24, fontSize: 13 }}>
+              <div style={{ textAlign: "center", color: "var(--text-muted)", padding: 28, fontSize: 13 }}>
+                <div style={{ fontSize: 36, marginBottom: 10 }}>🚌</div>
                 No active buses right now
               </div>
             )}

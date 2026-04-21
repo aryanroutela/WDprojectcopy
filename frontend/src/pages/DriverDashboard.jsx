@@ -61,13 +61,12 @@ const DriverDashboard = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       setBuses(res.data.buses || []);
-      // Feed active buses to map
       setMapBuses(res.data.buses?.filter((b) => b.status === "active") || []);
     } catch { toast.error("Failed to load buses"); }
     finally { setLoading(false); }
   };
 
-  // ── Bus Registration ──────────────────────────────────────────
+  // ── Bus Registration ─────────────────────────────────────────
   const handleRegisterBus = async (e) => {
     e.preventDefault();
     if (!busForm.busNumber || !busForm.routeName || !busForm.capacity) {
@@ -75,7 +74,6 @@ const DriverDashboard = () => {
     }
     setRegistering(true);
     try {
-      // Build checkpoints from source/destination if not explicitly set
       let checkpoints = busForm.checkpoints;
       if (checkpoints.length === 0 && busForm.source && busForm.destination) {
         checkpoints = [
@@ -83,8 +81,7 @@ const DriverDashboard = () => {
           { name: busForm.destination, sequence: 1, latitude: null, longitude: null },
         ];
       }
-      await axios.post(
-        `${API}/api/driver/bus/register`,
+      await axios.post(`${API}/api/driver/bus/register`,
         { ...busForm, checkpoints },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -96,7 +93,7 @@ const DriverDashboard = () => {
     finally { setRegistering(false); }
   };
 
-  // ── Service Start / Stop ──────────────────────────────────────
+  // ── Service Start / Stop ─────────────────────────────────────
   const handleStartService = async (bus) => {
     try {
       await axios.post(`${API}/api/driver/bus/${bus._id}/start`, {}, {
@@ -125,7 +122,7 @@ const DriverDashboard = () => {
     } catch { toast.error("Failed to stop service"); }
   };
 
-  // ── Live GPS Tracking ─────────────────────────────────────────
+  // ── Live GPS Tracking ────────────────────────────────────────
   const startTracking = (bus) => {
     if (!navigator.geolocation) { toast.error("Geolocation not supported"); return; }
     setTracking(true);
@@ -140,22 +137,15 @@ const DriverDashboard = () => {
           driverId: user?.id,
           latitude,
           longitude,
-          speed: speed ? Math.abs(speed) * 3.6 : 0, // convert m/s → km/h
+          speed: speed ? Math.abs(speed) * 3.6 : 0,
           heading: heading || 0,
         });
 
-        // Update local bus list with new location
         setBuses((prev) =>
-          prev.map((b) =>
-            b._id === bus._id
-              ? { ...b, currentLocation: loc, location: loc }
-              : b
-          )
+          prev.map((b) => b._id === bus._id ? { ...b, currentLocation: loc, location: loc } : b)
         );
         setMapBuses((prev) =>
-          prev.map((b) =>
-            b._id === bus._id ? { ...b, currentLocation: loc, location: loc } : b
-          )
+          prev.map((b) => b._id === bus._id ? { ...b, currentLocation: loc, location: loc } : b)
         );
       },
       () => toast.error("Could not get location"),
@@ -170,7 +160,7 @@ const DriverDashboard = () => {
     setCurrentLocation(null);
   };
 
-  // ── Seat Updates ──────────────────────────────────────────────
+  // ── Seat Updates ─────────────────────────────────────────────
   const handleUpdateSeats = async (bus, newSeats) => {
     try {
       await axios.patch(
@@ -189,7 +179,7 @@ const DriverDashboard = () => {
     } catch (err) { toast.error(err.response?.data?.message || "Failed to update seats"); }
   };
 
-  // ── Manual Checkpoint arrival ─────────────────────────────────
+  // ── Manual Checkpoint arrival ────────────────────────────────
   const handleArriveAtCheckpoint = (bus, cp, idx) => {
     socketRef.current?.emit("driver:arrivedAtCheckpoint", {
       busId: bus._id,
@@ -206,7 +196,7 @@ const DriverDashboard = () => {
     toast.success(`✅ Marked arrival at ${cp.name}`);
   };
 
-  // ── Checkpoint editor submit ──────────────────────────────────
+  // ── Checkpoint editor submit ─────────────────────────────────
   const handleSaveCheckpoints = async () => {
     if (cpForm.length < 2) { toast.error("At least 2 checkpoints required"); return; }
     try {
@@ -229,49 +219,89 @@ const DriverDashboard = () => {
 
   const activeBus = buses.find((b) => b._id === activeBusId);
 
-  if (loading) return <div className="loading-page"><div className="spinner" /><p>Loading buses...</p></div>;
+  if (loading) return (
+    <div className="loading-page">
+      <div className="spinner" />
+      <p className="loading-text">Loading your buses...</p>
+    </div>
+  );
 
   return (
     <div className="page">
-      {/* ── Header ───────────────────────────────────────────────── */}
+      {/* ── Header ─────────────────────────────────────────────── */}
       <div className="dash-header">
-        <div className="container flex-between" style={{ flexWrap: "wrap", gap: 12 }}>
-          <div>
-            <h1>🚌 Driver Panel</h1>
-            <p>
-              Welcome, {user?.firstName || "Driver"}
-              {tracking && (
-                <span className="badge badge-green" style={{ marginLeft: 8 }}>
-                  <span className="live-dot" /> Broadcasting Location
-                </span>
-              )}
-            </p>
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn btn-outline btn-sm" onClick={() => setShowMap(!showMap)}>
-              {showMap ? "📋 Hide Map" : "🗺️ Live Map"}
-            </button>
-            <button className="btn btn-primary btn-sm" onClick={() => setShowRegister(!showRegister)}>
-              ➕ Register Bus
-            </button>
+        <div className="container">
+          <div className="dash-header-inner">
+            <div>
+              <h1>
+                🚌 Driver Panel
+                {tracking && (
+                  <span className="live-badge" style={{ marginLeft: 12, fontSize: 11, verticalAlign: "middle" }}>
+                    <span className="live-dot" style={{ width: 6, height: 6 }} /> Broadcasting
+                  </span>
+                )}
+              </h1>
+              <p>Welcome, {user?.firstName || "Driver"} · Manage your buses &amp; routes</p>
+            </div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => setShowMap(!showMap)}
+                id="driver-toggle-map"
+              >
+                {showMap ? "📋 Hide Map" : "🗺️ Live Map"}
+              </button>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={() => setShowRegister(!showRegister)}
+                id="driver-register-bus"
+              >
+                ➕ Register Bus
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* ── Live Map (driver view) ────────────────────────────────── */}
+      {/* ── Active Tracking Banner ─────────────────────────────── */}
+      {tracking && activeBus && (
+        <div className="dash-content" style={{ paddingBottom: 0 }}>
+          <div className="driver-status-banner">
+            <div className="driver-status-icon">📡</div>
+            <div style={{ flex: 1 }}>
+              <div className="driver-status-title">Broadcasting — Bus {activeBus.busNumber}</div>
+              <div className="driver-status-sub">
+                {currentLocation
+                  ? `📍 ${currentLocation.latitude.toFixed(5)}, ${currentLocation.longitude.toFixed(5)}`
+                  : "Getting your location..."}
+              </div>
+            </div>
+            <button
+              className="btn btn-sm"
+              style={{ background: "rgba(255,255,255,0.2)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)" }}
+              onClick={() => handleStopService(activeBus)}
+            >
+              ⛔ Stop
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Live Map ──────────────────────────────────────────── */}
       {showMap && (
         <div className="dash-content">
-          <Suspense fallback={<div className="map-loading">Loading map...</div>}>
-            <LiveMap
-              buses={mapBuses}
-              selectedBus={activeBus
-                ? { ...activeBus, currentLocation: currentLocation || activeBus.currentLocation }
-                : null}
-              followBus={tracking}
-              height="380px"
-            />
-          </Suspense>
-
+          <div className="map-wrap">
+            <Suspense fallback={<div className="map-loading"><div className="spinner spinner-primary" /><p>Loading map...</p></div>}>
+              <LiveMap
+                buses={mapBuses}
+                selectedBus={activeBus
+                  ? { ...activeBus, currentLocation: currentLocation || activeBus.currentLocation }
+                  : null}
+                followBus={tracking}
+                height="380px"
+              />
+            </Suspense>
+          </div>
           {tracking && etaData && (
             <div style={{ marginTop: 16 }}>
               <ETADisplay etaData={etaData} eta={etaData?.etaToNextStop} busNumber={activeBus?.busNumber} />
@@ -280,50 +310,85 @@ const DriverDashboard = () => {
         </div>
       )}
 
-      {/* ── Register Form ─────────────────────────────────────────── */}
+      {/* ── Register Form ──────────────────────────────────────── */}
       {showRegister && (
-        <div className="section" style={{ background: "var(--white)", borderBottom: "1px solid var(--border)" }}>
-          <div className="container">
-            <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16 }}>Register New Bus</h3>
-            <form onSubmit={handleRegisterBus}>
+        <div className="dash-content">
+          <div className="card" style={{ border: "1px solid var(--primary)", background: "var(--primary-muted)" }}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: "var(--primary)" }}>
+              ➕ Register New Bus
+            </h3>
+            <form onSubmit={handleRegisterBus} id="register-bus-form">
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label">Bus Number *</label>
-                  <input className="form-input" placeholder="BUS-101"
+                  <input
+                    id="reg-bus-number"
+                    className="form-input"
+                    placeholder="BUS-101"
                     value={busForm.busNumber}
-                    onChange={(e) => setBusForm({ ...busForm, busNumber: e.target.value })} required />
+                    onChange={(e) => setBusForm({ ...busForm, busNumber: e.target.value })}
+                    required
+                  />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Route Name *</label>
-                  <input className="form-input" placeholder="Downtown Express"
+                  <input
+                    id="reg-route-name"
+                    className="form-input"
+                    placeholder="Downtown Express"
                     value={busForm.routeName}
-                    onChange={(e) => setBusForm({ ...busForm, routeName: e.target.value })} required />
+                    onChange={(e) => setBusForm({ ...busForm, routeName: e.target.value })}
+                    required
+                  />
                 </div>
               </div>
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label">Source (first stop)</label>
-                  <input className="form-input" placeholder="City Center"
+                  <input
+                    id="reg-source"
+                    className="form-input"
+                    placeholder="City Center"
                     value={busForm.source}
-                    onChange={(e) => setBusForm({ ...busForm, source: e.target.value })} />
+                    onChange={(e) => setBusForm({ ...busForm, source: e.target.value })}
+                  />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Destination (last stop)</label>
-                  <input className="form-input" placeholder="Airport"
+                  <input
+                    id="reg-destination"
+                    className="form-input"
+                    placeholder="Airport"
                     value={busForm.destination}
-                    onChange={(e) => setBusForm({ ...busForm, destination: e.target.value })} />
+                    onChange={(e) => setBusForm({ ...busForm, destination: e.target.value })}
+                  />
                 </div>
               </div>
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label">Capacity *</label>
-                  <input className="form-input" type="number" placeholder="40" min="1"
+                  <input
+                    id="reg-capacity"
+                    className="form-input"
+                    type="number"
+                    placeholder="40"
+                    min="1"
                     value={busForm.capacity}
-                    onChange={(e) => setBusForm({ ...busForm, capacity: e.target.value })} required />
+                    onChange={(e) => setBusForm({ ...busForm, capacity: e.target.value })}
+                    required
+                  />
                 </div>
                 <div className="form-group" style={{ display: "flex", alignItems: "flex-end" }}>
-                  <button className="btn btn-primary btn-block" disabled={registering}>
-                    {registering ? "Registering..." : "Register Bus"}
+                  <button
+                    id="reg-submit"
+                    className="btn btn-primary btn-block"
+                    disabled={registering}
+                  >
+                    {registering ? (
+                      <span style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "center" }}>
+                        <span className="spinner-sm" /> Registering...
+                      </span>
+                    ) : "Register Bus"}
                   </button>
                 </div>
               </div>
@@ -332,18 +397,26 @@ const DriverDashboard = () => {
         </div>
       )}
 
-      {/* ── Bus Cards ─────────────────────────────────────────────── */}
+      {/* ── Bus Cards ─────────────────────────────────────────── */}
       <div className="dash-content">
-        <h2 className="section-title">Your Buses ({buses.length})</h2>
+        <h2 className="section-title" style={{ marginBottom: 16 }}>
+          Your Buses ({buses.length})
+        </h2>
+
         {buses.length === 0 ? (
           <div className="empty-state">
             <div className="empty-state-icon">🚌</div>
-            <p className="empty-state-text">No buses registered yet. Add one above!</p>
+            <div className="empty-state-title">No buses registered</div>
+            <p className="empty-state-text">Click "Register Bus" above to get started</p>
           </div>
         ) : (
-          <div className="card-grid">
+          <div className="card-grid anim-stagger">
             {buses.map((bus) => (
-              <div key={bus._id} className={`card ${bus._id === activeBusId ? "card-active-bus" : ""}`}>
+              <div
+                key={bus._id}
+                id={`driver-bus-card-${bus.busNumber}`}
+                className={`card ${bus._id === activeBusId ? "card-active-bus" : ""}`}
+              >
                 {/* Card header */}
                 <div className="bus-card-header">
                   <span className="bus-number">{bus.busNumber}</span>
@@ -371,14 +444,15 @@ const DriverDashboard = () => {
                 {/* Manual checkpoint buttons (only when active) */}
                 {bus._id === activeBusId && bus.checkpoints?.length > 0 && (
                   <div className="cp-manual-btns">
-                    <div className="text-sm text-muted mb-8">Mark checkpoint arrival:</div>
+                    <div className="text-sm text-muted mb-8" style={{ fontWeight: 600 }}>
+                      Mark checkpoint arrival:
+                    </div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                       {bus.checkpoints.map((cp, i) => (
                         <button
                           key={i}
-                          className={`btn btn-sm ${
-                            i <= (bus.currentCheckpointIdx ?? -1) ? "btn-success" : "btn-outline"
-                          }`}
+                          id={`cp-arrive-${i}`}
+                          className={`btn btn-sm ${i <= (bus.currentCheckpointIdx ?? -1) ? "btn-success" : "btn-outline"}`}
                           onClick={() => handleArriveAtCheckpoint(bus, cp, i)}
                           disabled={i <= (bus.currentCheckpointIdx ?? -1)}
                         >
@@ -393,27 +467,39 @@ const DriverDashboard = () => {
                 <div className="bus-stats mb-16">
                   <div className="bus-stat">
                     <span className="bus-stat-val">{bus.capacity}</span>
-                    <span className="bus-stat-lbl">Capacity</span>
+                    <span className="bus-stat-lbl">Total</span>
                   </div>
                   <div className="bus-stat">
-                    <span className="bus-stat-val">{bus.seatsAvailable}</span>
-                    <span className="bus-stat-lbl">Available</span>
+                    <span className="bus-stat-val" style={{ color: "var(--green)" }}>{bus.seatsAvailable}</span>
+                    <span className="bus-stat-lbl">Free</span>
+                  </div>
+                  <div className="bus-stat">
+                    <span className="bus-stat-val" style={{ color: "var(--red)" }}>{bus.capacity - bus.seatsAvailable}</span>
+                    <span className="bus-stat-lbl">Taken</span>
                   </div>
                 </div>
+
                 <div className="mb-16">
-                  <div className="text-sm text-muted mb-8">Update Seats</div>
+                  <div className="text-sm text-muted mb-8" style={{ fontWeight: 600 }}>Update Seats</div>
                   <div className="seat-controls">
-                    <button className="seat-btn"
-                      onClick={() => handleUpdateSeats(bus, Math.max(0, bus.seatsAvailable - 1))}>−</button>
+                    <button
+                      id={`seat-minus-${bus.busNumber}`}
+                      className="seat-btn"
+                      onClick={() => handleUpdateSeats(bus, Math.max(0, bus.seatsAvailable - 1))}
+                    >−</button>
                     <span className="seat-count">{bus.seatsAvailable}</span>
-                    <button className="seat-btn"
-                      onClick={() => handleUpdateSeats(bus, Math.min(bus.capacity, bus.seatsAvailable + 1))}>+</button>
+                    <button
+                      id={`seat-plus-${bus.busNumber}`}
+                      className="seat-btn"
+                      onClick={() => handleUpdateSeats(bus, Math.min(bus.capacity, bus.seatsAvailable + 1))}
+                    >+</button>
                   </div>
                 </div>
 
                 {/* Checkpoint editor button */}
                 <button
                   className="btn btn-outline btn-sm btn-block mb-8"
+                  id={`edit-checkpoints-${bus.busNumber}`}
                   onClick={() => {
                     setEditingBusId(bus._id);
                     setCpForm(
@@ -437,23 +523,21 @@ const DriverDashboard = () => {
 
                 {/* Service controls */}
                 {bus.status === "active" ? (
-                  <button className="btn btn-danger btn-block btn-sm"
-                    onClick={() => handleStopService(bus)}>
+                  <button
+                    className="btn-stop-trip"
+                    id={`stop-service-${bus.busNumber}`}
+                    onClick={() => handleStopService(bus)}
+                  >
                     ⛔ Stop Service
                   </button>
                 ) : (
-                  <button className="btn btn-success btn-block btn-sm"
-                    onClick={() => handleStartService(bus)}>
+                  <button
+                    className="btn-start-trip"
+                    id={`start-service-${bus.busNumber}`}
+                    onClick={() => handleStartService(bus)}
+                  >
                     🚀 Start Service
                   </button>
-                )}
-
-                {/* Current location display */}
-                {bus._id === activeBusId && currentLocation && (
-                  <p className="text-sm text-muted mt-8">
-                    <span className="live-dot" /> {currentLocation.latitude.toFixed(5)},&nbsp;
-                    {currentLocation.longitude.toFixed(5)}
-                  </p>
                 )}
               </div>
             ))}
@@ -461,14 +545,17 @@ const DriverDashboard = () => {
         )}
       </div>
 
-      {/* ── Checkpoint Editor Modal ───────────────────────────────── */}
+      {/* ── Checkpoint Editor Modal ───────────────────────────── */}
       {showCpEditor && (
         <div className="modal-overlay" onClick={() => setShowCpEditor(false)}>
-          <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: 580, maxHeight: "85vh", overflowY: "auto" }}>
+          <div
+            className="modal"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 580, maxHeight: "85vh", overflowY: "auto" }}
+          >
             <button className="modal-close" onClick={() => setShowCpEditor(false)}>✕</button>
             <h3 className="modal-title">🗺️ Edit Checkpoints</h3>
-            <p style={{ fontSize: 13, color: "#64748b", marginBottom: 16 }}>
+            <p className="text-sm text-muted mb-16">
               Add stops in order. Coordinates are optional but enable precise ETA.
             </p>
 
@@ -485,9 +572,9 @@ const DriverDashboard = () => {
                       updated[i] = { ...cp, name: e.target.value };
                       setCpForm(updated);
                     }}
-                    style={{ marginBottom: 6 }}
+                    style={{ marginBottom: 8 }}
                   />
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                  <div className="form-row">
                     <input
                       className="form-input"
                       placeholder="Latitude (e.g. 12.9716)"
@@ -521,15 +608,17 @@ const DriverDashboard = () => {
             <button
               className="btn btn-outline btn-sm btn-block"
               style={{ marginTop: 12 }}
-              onClick={() =>
-                setCpForm([...cpForm, { name: "", sequence: cpForm.length, latitude: "", longitude: "" }])
-              }
+              onClick={() => setCpForm([...cpForm, { name: "", sequence: cpForm.length, latitude: "", longitude: "" }])}
             >
               + Add Stop
             </button>
 
-            <button className="btn btn-primary btn-block" style={{ marginTop: 12 }}
-              onClick={handleSaveCheckpoints}>
+            <button
+              id="save-checkpoints"
+              className="btn btn-primary btn-block"
+              style={{ marginTop: 12 }}
+              onClick={handleSaveCheckpoints}
+            >
               💾 Save Checkpoints
             </button>
           </div>
