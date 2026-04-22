@@ -13,6 +13,7 @@ const contactRoutes = require("./routes/contactRoutes");
 const complaintRoutes = require("./routes/complaintRoutes");
 const busRoutes = require("./routes/busRoutes");
 const routeRoutes = require("./routes/routeRoutes");
+const aiRoutes = require("./routes/aiRoutes");
 
 // Middleware
 const errorHandler = require("./middleware/errorHandler");
@@ -47,7 +48,8 @@ app.get("/", (req, res) => {
       buses: "/api/buses",
       routes: "/api/routes",
       contact: "/api/contact",
-      complaints: "/api/complaints"
+      complaints: "/api/complaints",
+      ai: "/api/ai"
     }
   });
 });
@@ -61,6 +63,7 @@ app.use("/api/buses", busRoutes);
 app.use("/api/routes", routeRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/complaints", complaintRoutes);
+app.use("/api/ai", aiRoutes);
 
 // 404 Handler
 app.use((req, res) => {

@@ -23,6 +23,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import DriverDashboard from "./pages/DriverDashboard";
 import UserDashboard from "./pages/UserDashboard";
 import LiveTrackingPage from "./pages/LiveTrackingPage";
+import AIChatbot from "./components/AIChatbot";
 
 // Global Layout wrapper so Navbar is visible everywhere
 const GlobalLayout = () => (
@@ -67,6 +68,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      <AIChatbot />
       <Routes>
         <Route element={<GlobalLayout />}>
           {/* Public Routes */}
